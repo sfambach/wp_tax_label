@@ -46,7 +46,7 @@ final class FilledLabel
     public function render(int $copies = 1, bool $asSeen = false, ?Resolution $resolution = null, array $pictures = []): string
     {
         // D-1228: the dialog's preview shows the label as it lands on paper, not the drawing moved for the printer.
-        return LabelDocument::renderLayout($asSeen ? $this->format->asSeen() : $this->format, $this->layout, array_fill(0, max(1, $copies), $this->values), $resolution, $pictures);
+        return LabelDocument::renderLayout($asSeen ? $this->format->asSeen() : $this->format, $this->layout, array_fill(0, max(1, $copies), $this->values), $resolution ?? $this->printer?->resolution(), $pictures);
     }
 
     public function toJson(): string

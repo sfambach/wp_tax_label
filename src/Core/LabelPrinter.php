@@ -2,6 +2,8 @@
 
 namespace TaxmodLabel\Core;
 
+use TaxmodLabel\Core\Drawing\Resolution;
+
 /**
  * A printer as the model keeps it (D-1191): its CUPS queue, the roll it holds, whether it turns labels as wide as that roll,
  * the CUPS options it always gets and those it gets for a turned label, the CUPS name of each label size, and — for a printer
@@ -37,6 +39,8 @@ final class LabelPrinter
         public readonly array $turnOptions = [],
         public readonly array $sizes = [],
         public readonly bool $retries = false,
+        /** Assumed field «Auflösung» (docs/konzept.md §10); 0 where the printer does not say. */
+        public readonly float $dpi = 0.0,
     ) {
         if (preg_match(self::NAME, $queue) !== 1) {
             throw new \InvalidArgumentException(sprintf('«%s» is not a CUPS queue name.', $queue));
@@ -84,11 +88,17 @@ final class LabelPrinter
         return $page === null ? $options : ['PageSize' => $page] + $options;
     }
 
+    /** The dots the codes are drawn to: the printer's own, else the worst printer in the house. */
+    public function resolution(): Resolution
+    {
+        return new Resolution($this->dpi > 0.0 ? $this->dpi : Resolution::DEFAULT_DPI);
+    }
+
     /** @return array{queue: string, options: array<string, string>, turn: bool, name: string, offset: float, line: float, roll: float, turn_options: array<string, string>, sizes: array<string, string>, retry: bool} */
     public function toArray(): array
     {
         return ['queue' => $this->queue, 'options' => $this->options, 'turn' => $this->turnsLabel, 'name' => $this->name, 'offset' => $this->offsetMm,
-            'line' => $this->lineMm, 'roll' => $this->rollMm, 'turn_options' => $this->turnOptions, 'sizes' => $this->sizes, 'retry' => $this->retries];
+            'line' => $this->lineMm, 'roll' => $this->rollMm, 'turn_options' => $this->turnOptions, 'sizes' => $this->sizes, 'retry' => $this->retries, 'dpi' => $this->dpi];
     }
 
     /**
@@ -124,6 +134,7 @@ final class LabelPrinter
             $map($raw['sizes'] ?? []),
             // D-1234: whether CUPS may try a failed job again by itself; off unless the printer says so.
             $yes($raw['retry'] ?? false),
+            $mm('dpi') >= 50.0 && $mm('dpi') <= 2400.0 ? $mm('dpi') : 0.0,
         );
     }
 

@@ -1,0 +1,34 @@
+.taxmod-label-editor { --tl-line: #c3c4c7; --tl-accent: #2271b1; --tl-bad: #d63638; --tl-warn: #dba617; --tl-ok: #00a32a; }
+.taxmod-label-editor .tl-toolbar, .taxmod-label-editor .tl-settings, .taxmod-label-editor .tl-row { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: flex-end; margin: 0 0 10px; }
+.taxmod-label-editor .tl-field { display: flex; flex-direction: column; font-size: 12px; gap: 2px; }
+.taxmod-label-editor .tl-field input[type=number] { width: 6em; }
+.taxmod-label-editor .tl-allowing { min-height: 28px; line-height: 28px; }
+.taxmod-label-editor .tl-status { margin-left: 4px; }
+.taxmod-label-editor .tl-status.is-error { color: var(--tl-bad); }
+.taxmod-label-editor .tl-palette { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; }
+.taxmod-label-editor .tl-palette .button { cursor: grab; }
+.taxmod-label-editor .tl-work { display: grid; grid-template-columns: minmax(0, 3fr) minmax(280px, 2fr); gap: 16px; }
+@media (max-width: 1100px) { .taxmod-label-editor .tl-work { grid-template-columns: 1fr; } }
+.taxmod-label-editor .tl-stage { position: relative; overflow: auto; max-width: 100%; background: #f0f0f1; border: 1px solid var(--tl-line); box-sizing: border-box; outline: none; }
+.taxmod-label-editor .tl-stage:focus-visible { box-shadow: 0 0 0 2px var(--tl-accent); }
+.taxmod-label-editor .tl-paper { position: absolute; left: 16px; top: 16px; transform-origin: 0 0; background-color: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .25);
+	background-image: linear-gradient(to right, rgba(0, 0, 0, .06) 1px, transparent 1px), linear-gradient(to bottom, rgba(0, 0, 0, .06) 1px, transparent 1px); }
+.taxmod-label-editor .tl-drawing { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; image-rendering: pixelated; }
+.taxmod-label-editor .tl-boxes { position: absolute; inset: 0; }
+.taxmod-label-editor .tl-box { position: absolute; box-sizing: border-box; border: 1px dashed rgba(34, 113, 177, .5); cursor: move; touch-action: none; }
+.taxmod-label-editor .tl-box { z-index: 2; }
+.taxmod-label-editor .tl-box.is-frame { z-index: 1; }
+.taxmod-label-editor .tl-box.is-selected { z-index: 3; }
+.taxmod-label-editor .tl-box:hover { background: rgba(34, 113, 177, .06); }
+.taxmod-label-editor .tl-box.is-selected { border: 1px solid var(--tl-accent); background: rgba(34, 113, 177, .08); }
+.taxmod-label-editor .tl-box.is-wrong { border-color: var(--tl-bad); background: rgba(214, 54, 56, .08); }
+.taxmod-label-editor .tl-grip { position: absolute; right: -5px; bottom: -5px; width: 10px; height: 10px; background: var(--tl-accent); border: 1px solid #fff; cursor: nwse-resize; touch-action: none; }
+.taxmod-label-editor .tl-problems { margin: 10px 0; }
+.taxmod-label-editor .tl-problems li { margin: 2px 0; }
+.taxmod-label-editor .tl-problems .is-error { color: var(--tl-bad); cursor: pointer; }
+.taxmod-label-editor .tl-problems .is-warning { color: #8a6d00; cursor: pointer; }
+.taxmod-label-editor .tl-problems .is-ok { color: var(--tl-ok); }
+.taxmod-label-editor .tl-props { border-top: 1px solid var(--tl-line); padding-top: 8px; }
+.taxmod-label-editor .tl-props h3, .taxmod-label-editor .tl-right h3 { margin: 0 0 8px; font-size: 14px; }
+.taxmod-label-editor .tl-check { display: inline-flex; align-items: center; gap: 4px; margin-right: 12px; }
+.taxmod-label-editor .tl-json { width: 100%; min-height: 360px; font-family: Consolas, Monaco, monospace; font-size: 12px; white-space: pre; tab-size: 2; }

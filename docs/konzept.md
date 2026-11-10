@@ -194,8 +194,17 @@ Andockstellen (D-1292, D-1294):
 | `taxmod_label_button` | Gastseiten (Modeller, Lager …) | den Druckknopf mit Dialog |
 | `taxmod_logistics_pages`, Bereich `print` | Lager-Menü | die Seite «Druck › Etiketten» |
 | `taxmod_print_render` | Druckaufträge ohne fertiges PDF («Nochmal drucken») | das PDF |
+| `taxmod_label_for` | Ability `taxmod-label/print` | der Besitzer des Codes (Lager: M-, P-, O-, K-) baut das Etikett wie sein Dialog (D-1235) |
 
-Druckaufträge legt das Modul über `ModelDoor::queuePrint($pdf, $format, $copies, $title)` an; der Modeller speichert das fertige PDF und liefert es dem Druckdienst unverändert (D-1294).
+Neu vorgeschlagen, **noch nicht freigegeben** (Frage an den Architektur-Thread):
+
+| Filter | Wer fragt | Wer antwortet |
+|---|---|---|
+| `taxmod_label_users` | Etiketten-Liste, Löschen | das Lager: Etikett-Id ⇒ Namen der Platzarten, die damit drucken; einmal je Seite gefragt (CD-7) |
+
+Der Editor spricht über zwei REST-Wege `taxmod-label/v1/preview` und `…/save` (REST-Nonce, Recht des Modellers), die dieselbe Arbeit tun wie die Abilities.
+
+Druckaufträge legt das Modul über `ModelDoor::queuePrint($pdf, $format, $code, $title, $copies, $delivery)` an; der Modeller speichert das fertige PDF und liefert es dem Druckdienst unverändert (D-1294).
 
 ## 8 · Stufe 2 — Felder füllen (offen)
 
@@ -219,3 +228,8 @@ Dasselbe Layout auf A4, mit einem Bereich, der sich je Zeile wiederholt (Rechnun
 - PNG mit Transparenz wird auf Weiß gelegt.
 - Mindestmaße für Codes (3 Punkte/0,33 mm 2D, 2 Punkte/0,25 mm 1D) und 203 dpi als Vorgabe.
 - Feste Texte (`text` statt `field`) sind Daten des Etiketts, keine Software-Texte (AR-2).
+- Rollen bekommen im Editor ein Etikett nur dazu («Auch erlauben auf»); wegnehmen geht an der Rolle selbst.
+- Neues Etikett ohne Größe-Schlüssel bekommt «BreitexHöhe» (z. B. `62x30`).
+- Die Auflösung zum Prüfen ist im Editor wählbar (203 / 300 / 600 dpi und die der Drucker); das Feld `printer_dpi` am Drucker ist angenommen und noch nicht im Modell.
+- Der Druckknopf des Moduls antwortet mit Priorität 20, damit er bis zum Einspielen ohne Etikettencode im Modeller gewinnt.
+- Ein Bild wird nur gelesen, wenn es höchstens 4 MB hat.

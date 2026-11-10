@@ -1,0 +1,29 @@
+{
+  "nodes": {
+    "label_template": 149000110338,
+    "label_printer": 149000110386,
+    "label_roll": 149000110387
+  },
+  "fields": {
+    "label": 149000103839,
+    "template_key": 149000110353,
+    "template_width": 149000110354,
+    "template_height": 149000110355,
+    "template_layout": 149000110349,
+    "template_roll": 149000110356,
+    "template_copies": 149000110348,
+    "printer_queue": 149000110386,
+    "printer_turns": 149000110388,
+    "printer_options": 149000110389,
+    "printer_turn_options": 149000110390,
+    "printer_sizes": 149000110391,
+    "printer_offset": 149000110392,
+    "printer_line": 149000110393,
+    "printer_loaded_roll": 149000110387,
+    "printer_setup": 149000110396,
+    "printer_active": 149000110403,
+    "printer_retry": 149000110404,
+    "roll_width": 149000110383,
+    "roll_labels": 149000110384
+  }
+}
