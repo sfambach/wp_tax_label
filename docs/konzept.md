@@ -87,7 +87,8 @@ Ein gespeichertes Layout im alten Format (nur eine Liste von Elementen, deutsche
 | `ean13` | Handelsware, 12/13 Ziffern | `field`, `human` |
 | `code39` | alte Scanner, Industrie | `field`, `human` |
 | `image` | Bild/Logo aus der WP-Mediathek | `media` (`media:<id>`), `keep` (Seitenverhältnis) |
-| `line` | schwarzer Balken, Schnittmarke (D-1237) | — |
+| `line` | waagrechte oder senkrechte Linie, Schnittmarke (D-1237): ein gefüllter Balken über die Box | — |
+| `rect` | Rahmen, ein Rechteck aus vier Linien | `stroke` (Strichstärke in mm, Standard 0,3) |
 
 Alle Elemente haben `x`, `y`, `w`, `h` in mm ab der linken oberen Ecke, dazu `example` (Beispielwert für die Vorschau, D-1154).
 
@@ -135,13 +136,14 @@ Ort: **Einstellungen › Druck › Etiketten**, wo heute die Etikettenvorlagen s
 ```mermaid
 flowchart LR
   T["Werkzeugleiste: Öffnen · Neu · Kopieren · Speichern · Drehen · PDF"] --- V
-  P["Palette: Text · QR · DataMatrix · Code128 · EAN-13 · Code39 · Bild · Linie"] --> V["Vorschau (SVG, mm-Raster)"]
+  P["Palette: Text · QR · DataMatrix · Code128 · EAN-13 · Code39 · Bild · Linie · Rahmen"] --> V["Vorschau (SVG, mm-Raster)"]
   V <--> E["Eigenschaften des gewählten Elements"]
   V <--> J["Code-Editor (JSON)"]
   J --> F["Fehlerliste"]
 ```
 
 - **Ziehen und Ablegen:** Element aus der Palette auf die Vorschau ziehen; verschieben, Größe an den Griffen ändern; Raster 0,5 mm; Pfeiltasten verschieben um 0,5 mm.
+- **Etikett-Einstellungen** als Eingabefelder über der Vorschau: Breite, Höhe, Rolle, Anzahl. Sie schreiben sofort in den «label»-Kopf des JSON (Stefan 10.11.: «soll der Nutzer natürlich nicht ins JSON eintippen»). Niemand muss JSON tippen; wer will, kann es.
 - **Eigenschaften:** Feld oder fester Text, Schriftgröße, fett, Ausrichtung, `fit`, Beispielwert; Bild über die Mediathek-Auswahl.
 - **Code-Editor:** zeigt das JSON aus Abschnitt 3 und folgt jeder Änderung in der Vorschau, und umgekehrt.
 - **Fehler** zeigt der Editor sofort, mit Zeile und Element. Ein Etikett mit Fehlern lässt sich nicht speichern.
