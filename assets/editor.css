@@ -2,7 +2,7 @@
 .taxmod-label-editor .tl-toolbar, .taxmod-label-editor .tl-settings, .taxmod-label-editor .tl-row { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: flex-end; margin: 0 0 10px; }
 .taxmod-label-editor .tl-field { display: flex; flex-direction: column; font-size: 12px; gap: 2px; }
 .taxmod-label-editor .tl-field input[type=number] { width: 6em; }
-.taxmod-label-editor .tl-allowing { min-height: 28px; line-height: 28px; }
+.taxmod-label-editor .tl-rolls { display: flex; flex-wrap: wrap; min-height: 28px; align-items: center; }
 .taxmod-label-editor .tl-status { margin-left: 4px; }
 .taxmod-label-editor .tl-status.is-error { color: var(--tl-bad); }
 .taxmod-label-editor .tl-palette { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; }

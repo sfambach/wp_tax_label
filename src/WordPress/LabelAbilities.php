@@ -59,7 +59,7 @@ final class LabelAbilities
             'ids' => $ids, 'layout' => ['type' => 'boolean', 'default' => false],
         ], $this->read(...), true);
 
-        $ability(self::SAVE, __('Create or change a label', 'taxmod-label'), __('With id: changes only the fields given. Without id: a new label in category (node id from taxmod-label/labels), name needed. Fields: name, key (size key, e.g. 40x12), width, height (mm), roll (mm), copies, layout (JSON: a list of elements or {"label":{…},"elements":[…]}, as string or array; checked before anything is written — every problem is answered). rolls: roll ids that allow the label from now on. dry_run: checks and answers, writes nothing. pdf: true answers the label drawn with the examples of its layout as base64 PDF.', 'taxmod-label'), [
+        $ability(self::SAVE, __('Create or change a label', 'taxmod-label'), __('With id: changes only the fields given. Without id: a new label in category (node id from taxmod-label/labels), name needed. Fields: name, key (size key, e.g. 40x12), width, height (mm), roll (mm), copies, layout (JSON: a list of elements or {"label":{…},"elements":[…]}, as string or array; checked before anything is written — every problem is answered). rolls: exactly the roll ids that allow the label from now on — it leaves the rolls not named; leave rolls out to keep them as they are. dry_run: checks and answers, writes nothing. pdf: true answers the label drawn with the examples of its layout as base64 PDF.', 'taxmod-label'), [
             'id' => ['type' => 'integer', 'minimum' => 1], 'category' => ['type' => 'integer', 'minimum' => 1], 'name' => ['type' => 'string'],
             'key' => ['type' => 'string', 'pattern' => '^[A-Za-z0-9_\-]+$'], 'width' => ['type' => 'integer', 'minimum' => 1], 'height' => ['type' => 'integer', 'minimum' => 1],
             'roll' => ['type' => 'integer', 'minimum' => 1], 'copies' => ['type' => 'integer', 'minimum' => 1], 'layout' => ['type' => ['string', 'array', 'object']],
@@ -120,7 +120,7 @@ final class LabelAbilities
         $service = new LabelService();
         $id      = absint($input['id'] ?? 0);
         $given   = self::given($input);
-        $rolls   = array_values(array_filter(array_map('intval', (array) ($input['rolls'] ?? [])), static fn (int $r): bool => $r > 0));
+        $rolls   = array_key_exists('rolls', $input) ? array_values(array_filter(array_map('intval', (array) $input['rolls']), static fn (int $r): bool => $r > 0)) : null;
         (new LabelChanges($service->structure()))->values($given);
 
         $before   = $id > 0 ? ($this->labels($service, true)[$id] ?? throw LabelError::notALabel('#' . $id)) : [];

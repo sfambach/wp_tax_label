@@ -72,7 +72,7 @@
 	}
 
 	function snapshot() {
-		return JSON.stringify({ n: state.name, k: state.key, c: state.node, r: state.more || [], d: state.doc });
+		return JSON.stringify({ n: state.name, k: state.key, c: state.node, r: state.rolls, d: state.doc });
 	}
 
 	function documentJson() {
@@ -129,12 +129,9 @@
 	(setup.printers || []).forEach((p) => p.dpi && dpis.set(Number(p.dpi), p.dpi + ' dpi · ' + p.name));
 	[300, 600].forEach((d) => dpis.has(d) || dpis.set(d, d + ' dpi'));
 	dpis.forEach((text, value) => ui.dpi.append(el('option', { value }, text)));
-	// The rolls only ever gain a label here (LabelChanges::update); taking one away is done at the roll.
-	const allowing = (setup.rolls || []).filter((r) => state.rolls.includes(Number(r.id)));
-	const others = (setup.rolls || []).filter((r) => !state.rolls.includes(Number(r.id)));
-	ui.rolls = el('select', { multiple: true, size: Math.min(4, Math.max(2, others.length)) });
-	others.forEach((r) => ui.rolls.append(el('option', { value: r.id }, r.name)));
-	state.more = [];
+	// Ticked: the roll allows this label; unticked: it leaves the roll (LabelChanges::update, his word 2026-11-10 «was hin kann sollte auch weg können»).
+	ui.rolls = el('span', { class: 'tl-rolls' });
+	(setup.rolls || []).forEach((r) => ui.rolls.append(el('label', { class: 'tl-check' }, el('input', { type: 'checkbox', value: r.id, checked: state.rolls.includes(Number(r.id)) }), ' ' + r.name)));
 
 	ui.save = el('button', { type: 'button', class: 'button button-primary', onclick: save }, T('Speichern'));
 	ui.pdf = el('button', { type: 'button', class: 'button', onclick: pdf }, T('PDF'));
@@ -174,7 +171,7 @@
 
 	root.append(
 		el('div', { class: 'tl-toolbar' }, field(T('Name'), ui.name), field(T('Größe-Schlüssel'), ui.key), field(T('Kategorie'), ui.node), ui.undo, ui.redo, ui.rotate, ui.zoom, ui.pdf, ui.save, ui.status),
-		el('div', { class: 'tl-settings' }, field(T('Breite (mm)'), ui.w), field(T('Höhe (mm)'), ui.h), field(T('Rolle (mm)'), ui.roll), field(T('Anzahl'), ui.copies), field(T('Prüfen für'), ui.dpi), el('div', { class: 'tl-field' }, el('span', {}, T('Erlaubt auf')), el('span', { class: 'tl-allowing' }, allowing.map((r) => r.name).join(', ') || '—')), others.length ? field(T('Auch erlauben auf'), ui.rolls) : ''),
+		el('div', { class: 'tl-settings' }, field(T('Breite (mm)'), ui.w), field(T('Höhe (mm)'), ui.h), field(T('Rolle (mm)'), ui.roll), field(T('Anzahl'), ui.copies), field(T('Prüfen für'), ui.dpi), (setup.rolls || []).length ? el('div', { class: 'tl-field' }, el('span', {}, T('Erlaubt auf Rolle')), ui.rolls) : ''),
 		ui.palette,
 		el('div', { class: 'tl-work' },
 			el('div', { class: 'tl-left' }, ui.stage, ui.problems, ui.props),
@@ -188,7 +185,7 @@
 	ui.name.addEventListener('change', () => change(() => { state.name = ui.name.value.trim(); }, false));
 	ui.key.addEventListener('change', () => change(() => { state.key = ui.key.value.trim(); }, false));
 	ui.node.addEventListener('change', () => change(() => { state.node = Number(ui.node.value); }, false));
-	ui.rolls.addEventListener('change', () => change(() => { state.more = Array.from(ui.rolls.selectedOptions).map((o) => Number(o.value)); }, false));
+	ui.rolls.addEventListener('change', () => change(() => { state.rolls = Array.from(ui.rolls.querySelectorAll('input:checked')).map((o) => Number(o.value)); }, false));
 	ui.dpi.addEventListener('change', () => { state.dpi = Number(ui.dpi.value); preview(); });
 	window.addEventListener('beforeunload', (ev) => {
 		if (snapshot() !== state.saved) {
@@ -215,11 +212,11 @@
 		}
 		to.push(snapshot());
 		const s = JSON.parse(from.pop());
-		Object.assign(state, { name: s.n, key: s.k, node: s.c, more: s.r, doc: s.d });
+		Object.assign(state, { name: s.n, key: s.k, node: s.c, rolls: s.r, doc: s.d });
 		ui.name.value = state.name;
 		ui.key.value = state.key;
 		ui.node.value = String(state.node);
-		Array.from(ui.rolls.options).forEach((o) => { o.selected = state.more.includes(Number(o.value)); });
+		ui.rolls.querySelectorAll('input').forEach((o) => { o.checked = state.rolls.includes(Number(o.value)); });
 		state.selected = Math.min(state.selected, state.doc.elements.length - 1);
 		render(true);
 	}
@@ -561,7 +558,7 @@
 			ui.name.focus();
 			return;
 		}
-		const body = { name: state.name, key: state.key || state.doc.label.w + 'x' + state.doc.label.h, layout: documentJson(), rolls: state.more };
+		const body = { name: state.name, key: state.key || state.doc.label.w + 'x' + state.doc.label.h, layout: documentJson(), rolls: state.rolls };
 		if (state.id > 0) {
 			body.id = state.id;
 		} else {

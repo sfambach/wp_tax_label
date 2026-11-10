@@ -78,15 +78,25 @@ final class LabelChanges
 
     /**
      * @param array<string, mixed> $given only what changes
-     * @param list<int> $rolls rolls that allow it from now on, besides those that already do
+     * @param list<int>|null $rolls exactly the rolls that allow it from now on — it leaves the others; null: the rolls stay as they are
      * @return list<array<string, mixed>>
      */
-    public function update(int $label, array $given, array $rolls = [], ?Table $rollTable = null): array
+    public function update(int $label, array $given, ?array $rolls = null, ?Table $rollTable = null): array
     {
         $values  = $this->values($given);
         $changes = $values === [] ? [] : [['op' => 'set_values', 'record' => (string) $label, 'values' => $values]];
+        if ($rolls === null) {
+            return $changes;
+        }
+        $leaving = [];
+        foreach ($this->rollsAllowing($label, $rollTable) as $roll) {
+            if (! in_array($roll, $rolls, true)) {
+                $kept      = array_values(array_filter($this->allowed($roll, $rollTable), static fn (string $id): bool => $id !== (string) $label));
+                $leaving[] = ['op' => 'set_values', 'record' => (string) $roll, 'values' => [(string) $this->structure->field('roll_labels') => ['values' => $kept]]];
+            }
+        }
 
-        return array_merge($changes, $this->allowOn((string) $label, $rolls, $rollTable));
+        return array_merge($changes, $leaving, $this->allowOn((string) $label, $rolls, $rollTable));
     }
 
     /**

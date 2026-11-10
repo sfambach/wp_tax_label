@@ -126,9 +126,9 @@ final class LabelService
      * A label created (in «Etiketten» or one of its categories) or changed, and the rolls that allow it from now on; one write.
      *
      * @param array<string, mixed> $given name, key, width, height, roll, copies, layout — only what changes
-     * @param list<int>            $rolls
+     * @param list<int>|null       $rolls exactly the rolls that allow it from now on; null: unchanged
      */
-    public function save(int $label, int $node, array $given, array $rolls = []): int
+    public function save(int $label, int $node, array $given, ?array $rolls = null): int
     {
         $records = $this->records();
         $changes = new LabelChanges($this->structure());
@@ -147,7 +147,7 @@ final class LabelService
         if ($node !== $records['root'] && ! isset($records['categories'][$node])) {
             throw LabelError::notALabel('node ' . $node);
         }
-        $answer = $this->door->write($changes->create($node, $given, $rolls, $this->rollTable()));
+        $answer = $this->door->write($changes->create($node, $given, $rolls ?? [], $this->rollTable()));
         $this->forget();
 
         return (int) ($answer['refs']['etikett'] ?? 0);

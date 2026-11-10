@@ -162,6 +162,7 @@ flowchart LR
 ```
 
 - **Ziehen und Ablegen:** Element aus der Palette auf die Vorschau ziehen; verschieben, Größe an den Griffen ändern; Raster 0,5 mm; Pfeiltasten verschieben um 0,5 mm.
+- **Rollen:** Häkchen je Rolle; angehakt erlaubt die Rolle das Etikett, abgehakt verlässt es sie (Stefan 10.11.: «was hin kann sollte auch weg können»).
 - **Etikett-Einstellungen** als Eingabefelder über der Vorschau: Breite, Höhe, Rolle, Anzahl. Sie schreiben sofort in den «label»-Kopf des JSON (Stefan 10.11.: «soll der Nutzer natürlich nicht ins JSON eintippen»). Niemand muss JSON tippen; wer will, kann es.
 - **Eigenschaften:** Feld oder fester Text, Schriftgröße, fett, Ausrichtung, `fit`, Beispielwert; Bild über die Mediathek-Auswahl.
 - **Code-Editor:** zeigt das JSON aus Abschnitt 3 und folgt jeder Änderung in der Vorschau, und umgekehrt.
@@ -228,7 +229,6 @@ Dasselbe Layout auf A4, mit einem Bereich, der sich je Zeile wiederholt (Rechnun
 - PNG mit Transparenz wird auf Weiß gelegt.
 - Mindestmaße für Codes (3 Punkte/0,33 mm 2D, 2 Punkte/0,25 mm 1D) und 203 dpi als Vorgabe.
 - Feste Texte (`text` statt `field`) sind Daten des Etiketts, keine Software-Texte (AR-2).
-- Rollen bekommen im Editor ein Etikett nur dazu («Auch erlauben auf»); wegnehmen geht an der Rolle selbst.
 - Neues Etikett ohne Größe-Schlüssel bekommt «BreitexHöhe» (z. B. `62x30`).
 - Die Auflösung zum Prüfen ist im Editor wählbar (203 / 300 / 600 dpi und die der Drucker); sie kommt aus dem vorhandenen Feld «Auflösung (dpi)» des Druckers (`printer_dpi`, D-1296); leer heißt 203 dpi.
 - Der Druckknopf des Moduls antwortet mit Priorität 20, damit er bis zum Einspielen ohne Etikettencode im Modeller gewinnt.
