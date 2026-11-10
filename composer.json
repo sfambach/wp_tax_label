@@ -1,0 +1,30 @@
+{
+    "name": "sfambach/wp-tax-label",
+    "description": "Taxmod Label — label editor, layout and renderer for the Taxonomy Modeller.",
+    "type": "wordpress-plugin",
+    "license": "proprietary",
+    "require": {
+        "php": ">=8.2"
+    },
+    "autoload": {
+        "psr-4": {
+            "TaxmodLabel\\Core\\": "src/Core/",
+            "TaxmodLabel\\WordPress\\": "src/WordPress/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "TaxmodLabel\\Tests\\": "tests/"
+        }
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^10"
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "sort-packages": true
+    },
+    "scripts": {
+        "test": "phpunit"
+    }
+}

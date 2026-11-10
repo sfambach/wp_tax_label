@@ -104,6 +104,25 @@ Wächst ein Rahmen über das Etikett hinaus, ist das ein Fehler (Abschnitt 6).
 
 **Bilder** kommen nur aus der Mediathek (Stefan 10.11.). Die Grenzschicht löst `media:<id>` in eine Datei auf; der Kern bekommt nur die Bytes. Erlaubt sind JPEG und PNG.
 
+### Scanbarkeit
+
+Stefan 10.11.: Ein Code war einmal zu klein zum Scannen, und die Drucker lösen nicht immer hoch auf. Der Renderer sichert deshalb ab:
+
+```mermaid
+flowchart LR
+  W["Box des Codes"] --> M["Modulbreite = Box ÷ Module"]
+  D["Druckerauflösung (dpi)"] --> R["auf ganze Druckpunkte abrunden"]
+  M --> R --> C{"≥ Mindestmaß?"}
+  C -- ja --> P["zeichnen, mittig in der Box"]
+  C -- nein --> F["Fehler im Editor, Druck verweigert"]
+```
+
+- **Ganze Druckpunkte:** Jedes Modul (QR, DataMatrix) und jeder schmale Balken (1D) ist eine ganze Zahl von Druckpunkten breit. Sonst rundet der Drucker ungleich, und Balken verschmelzen.
+- **Mindestmaß:** 2D-Modul mindestens 3 Punkte und 0,33 mm; schmaler 1D-Balken mindestens 2 Punkte und 0,25 mm. Darunter meldet der Editor einen Fehler und der Druck wird verweigert.
+- **Ruhezone:** QR 4 Module, DataMatrix 1 Modul, 1D 10 schmale Balken links und rechts. Sie zählt zur Box; der Code wird kleiner, nicht die Ruhezone.
+- **Fehlerkorrektur:** QR mindestens Stufe M; DataMatrix ECC 200 hat sie fest eingebaut.
+- **Auflösung:** Ohne bekannten Drucker rechnet der Editor mit 203 dpi, dem schlechtesten Drucker im Haus (Phomemo).
+
 ## 5 · Ein Renderer, zwei Zeichenflächen
 
 ```mermaid
@@ -198,4 +217,5 @@ Dasselbe Layout auf A4, mit einem Bereich, der sich je Zeile wiederholt (Rechnun
 - Raster 0,5 mm und Pfeiltasten-Schritt 0,5 mm.
 - `human` (Klartext unter 1D-Codes) ist standardmäßig an.
 - PNG mit Transparenz wird auf Weiß gelegt.
+- Mindestmaße für Codes (3 Punkte/0,33 mm 2D, 2 Punkte/0,25 mm 1D) und 203 dpi als Vorgabe.
 - Feste Texte (`text` statt `field`) sind Daten des Etiketts, keine Software-Texte (AR-2).
