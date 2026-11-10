@@ -196,7 +196,7 @@ Andockstellen (D-1292, D-1294):
 | `taxmod_print_render` | Druckaufträge ohne fertiges PDF («Nochmal drucken») | das PDF |
 | `taxmod_label_for` | Ability `taxmod-label/print` | der Besitzer des Codes (Lager: M-, P-, O-, K-) baut das Etikett wie sein Dialog (D-1235) |
 
-Neu vorgeschlagen, **noch nicht freigegeben** (Frage an den Architektur-Thread):
+Freigegeben mit D-1296:
 
 | Filter | Wer fragt | Wer antwortet |
 |---|---|---|
@@ -230,6 +230,6 @@ Dasselbe Layout auf A4, mit einem Bereich, der sich je Zeile wiederholt (Rechnun
 - Feste Texte (`text` statt `field`) sind Daten des Etiketts, keine Software-Texte (AR-2).
 - Rollen bekommen im Editor ein Etikett nur dazu («Auch erlauben auf»); wegnehmen geht an der Rolle selbst.
 - Neues Etikett ohne Größe-Schlüssel bekommt «BreitexHöhe» (z. B. `62x30`).
-- Die Auflösung zum Prüfen ist im Editor wählbar (203 / 300 / 600 dpi und die der Drucker); das Feld `printer_dpi` am Drucker ist angenommen und noch nicht im Modell.
+- Die Auflösung zum Prüfen ist im Editor wählbar (203 / 300 / 600 dpi und die der Drucker); sie kommt aus dem vorhandenen Feld «Auflösung (dpi)» des Druckers (`printer_dpi`, D-1296); leer heißt 203 dpi.
 - Der Druckknopf des Moduls antwortet mit Priorität 20, damit er bis zum Einspielen ohne Etikettencode im Modeller gewinnt.
 - Ein Bild wird nur gelesen, wenn es höchstens 4 MB hat.
