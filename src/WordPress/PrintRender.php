@@ -40,7 +40,7 @@ final class PrintRender
                     'pdf'    => LabelRender::run([['label' => $label, 'copies' => $copies, 'filled' => $filled]], LabelRender::TO_PDF)['pdf'] ?? '',
                     'format' => $filled->format->key,
                     'roll'   => $filled->format->rollMm,
-                ] + ($printer === null ? [] : ['queue' => $printer->queue, 'options' => $printer->optionsFor($filled->format), 'retry' => $printer->retries]);
+                ] + ($printer === null ? [] : ['queue' => $printer->queue, 'options' => $printer->optionsFor($filled->format), 'retry' => $printer->retries, 'pause' => $printer->pauseSeconds]);
             }
             $format = LabelFormat::shipped()[(string) ($row['format'] ?? '')] ?? null;
             if ($format === null) {
