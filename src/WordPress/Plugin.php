@@ -80,6 +80,7 @@ final class Plugin
     {
         $pages[] = ['slug' => LabelsPage::SLUG, 'label' => __('Etiketten', 'taxmod-label'), 'area' => 'print', 'capability' => \Taxmod\WordPress\Plugin::CAPABILITY, 'render' => static fn (): string => (new LabelsPage())->render()];
         $pages[] = ['slug' => PrintersPage::SLUG, 'label' => __('Drucker', 'taxmod-label'), 'area' => 'print', 'capability' => \Taxmod\WordPress\Plugin::CAPABILITY, 'render' => static fn (): string => (new PrintersPage())->render()];
+        $pages[] = ['slug' => PrintersPage::MEDIA_SLUG, 'label' => __('Druckmedium', 'taxmod-label'), 'area' => 'print', 'capability' => \Taxmod\WordPress\Plugin::CAPABILITY, 'render' => static fn (): string => (new PrintersPage())->media()];
 
         return $pages;
     }

@@ -20,6 +20,9 @@ final class PrintersPage
 {
     public const SLUG = 'taxmod-label-printers';
 
+    /** Stefan 2026-11-18: «sependir doch mal den eitiktten einen eigenen menüpunkt Druckmedium» — the rolls, out of the printers page. */
+    public const MEDIA_SLUG = 'taxmod-label-media';
+
     public const ACTION = 'taxmod_label_printers';
 
     public static function boot(): void
@@ -30,6 +33,11 @@ final class PrintersPage
     public static function url(array $args = []): string
     {
         return add_query_arg(['page' => 'taxmod-lager-modul', 'module' => self::SLUG] + $args, admin_url('admin.php'));
+    }
+
+    public static function mediaUrl(array $args = []): string
+    {
+        return add_query_arg(['page' => 'taxmod-lager-modul', 'module' => self::MEDIA_SLUG] + $args, admin_url('admin.php'));
     }
 
     /** admin-post «Rolle wechseln»: capability → nonce → validate → act (D-1254). */
@@ -105,7 +113,7 @@ final class PrintersPage
         $chosen   = absint($_GET['satz'] ?? 0);
         $allowed  = static fn (?array $printer): string => implode(', ', array_unique(array_map(static fn (int $t): string => (string) ($catalog->get($t)['name'] ?? '#' . $t), $printer['allows'] ?? []))) ?: '—';
 
-        if ($chosen > 0 && (isset($printers[$chosen]) || isset($rolls[$chosen]))) {
+        if ($chosen > 0 && isset($printers[$chosen])) {
             return $this->details($chosen, $printers, $rolls, $active, $allowed, $service);
         }
         $setup = $s->hasField('printer_setup') ? $service->table('label_printer') : null;
@@ -122,12 +130,7 @@ final class PrintersPage
                 . '<td>' . esc_html($allowed($printer)) . '</td>'
                 . '<td style="text-align:right;white-space:nowrap">' . $this->changeRollDialog($id, $name, $rolls, $service) . ' <a class="button" href="' . esc_url(self::url(['satz' => $id])) . '">' . esc_html__('Öffnen', 'taxmod-label') . '</a></td></tr>';
         }
-        $rollBody = '';
-        foreach ($rolls as $id => $name) {
-            $rollBody .= '<tr><th scope="row" class="check-column"></th><td><a href="' . esc_url(self::url(['satz' => $id])) . '"><strong>' . esc_html($name) . '</strong></a></td>'
-                . '<td style="text-align:right"><a class="button" href="' . esc_url(self::url(['satz' => $id])) . '">' . esc_html__('Öffnen', 'taxmod-label') . '</a></td></tr>';
-        }
-        $none = static fn (int $columns): string => '<tr class="no-items"><td class="colspanchange" colspan="' . esc_attr((string) ($columns + 2)) . '">' . esc_html__('Nichts gefunden.', 'taxmod-label') . '</td></tr>';
+        $none = self::none(...);
         $help = '<details class="taxmod-help" style="margin:0 0 1em"><summary><strong>' . esc_html__('Neues Etikett einrichten', 'taxmod-label') . '</strong></summary><ol>'
             . '<li>' . esc_html__('Unter Etiketten das Etikett anlegen: Größe, Rolle, Anzahl, Layout.', 'taxmod-label') . '</li>'
             . '<li>' . esc_html__('Bei der Rolle eintragen, auf der es gedruckt wird.', 'taxmod-label') . '</li>'
@@ -141,10 +144,37 @@ final class PrintersPage
             . $help
             . ListPage::table([[__('Drucker', 'taxmod-label'), '14em'], [__('Warteschlange', 'taxmod-label'), '12em'], [__('Auflösung', 'taxmod-label'), '7em'], [__('Eingelegte Rolle', 'taxmod-label'), '14em'], [__('Erlaubte Etiketten', 'taxmod-label'), '']], $body === '' ? $none(5) : $body)
             . '<p class="description">' . esc_html__('* ohne Angabe am Drucker prüft der Editor die Codes für 203 dpi.', 'taxmod-label') . '</p>'
-            . '<h2>' . esc_html__('Rollen', 'taxmod-label') . '</h2>'
-            . '<p class="description">' . esc_html__('Eine Rolle nennt ihre Breite und die Etiketten, die auf ihr gedruckt werden dürfen.', 'taxmod-label') . '</p>'
-            . ListPage::table([[__('Rolle', 'taxmod-label'), '']], $rollBody === '' ? $none(1) : $rollBody)
             . $this->testPrints();
+    }
+
+    /** Einstellungen › Druck › Druckmedium: the rolls, each opened in the record editor. */
+    public function media(): string
+    {
+        $service = new LabelService();
+        $s       = $service->structure();
+        $rolls   = $s->hasNode('label_roll') ? $service->names('label_roll') : [];
+        $chosen  = absint($_GET['satz'] ?? 0);
+        if ($chosen > 0 && isset($rolls[$chosen])) {
+            $printers = $s->hasNode('label_printer') ? $service->names('label_printer') : [];
+            $catalog  = $service->catalog();
+            $allowed  = static fn (?array $printer): string => implode(', ', array_unique(array_map(static fn (int $t): string => (string) ($catalog->get($t)['name'] ?? '#' . $t), $printer['allows'] ?? []))) ?: '—';
+
+            return $this->details($chosen, $printers, $rolls, $catalog->printerList(), $allowed, $service);
+        }
+        $rollBody = '';
+        foreach ($rolls as $id => $name) {
+            $rollBody .= '<tr><th scope="row" class="check-column"></th><td><a href="' . esc_url(self::mediaUrl(['satz' => $id])) . '"><strong>' . esc_html($name) . '</strong></a></td>'
+                . '<td style="text-align:right"><a class="button" href="' . esc_url(self::mediaUrl(['satz' => $id])) . '">' . esc_html__('Öffnen', 'taxmod-label') . '</a></td></tr>';
+        }
+
+        return '<h2>' . esc_html__('Rollen', 'taxmod-label') . '</h2>'
+            . '<p class="description">' . esc_html__('Eine Rolle nennt ihre Breite und die Etiketten, die auf ihr gedruckt werden dürfen.', 'taxmod-label') . '</p>'
+            . ListPage::table([[__('Rolle', 'taxmod-label'), '']], $rollBody === '' ? self::none(1) : $rollBody);
+    }
+
+    private static function none(int $columns): string
+    {
+        return '<tr class="no-items"><td class="colspanchange" colspan="' . esc_attr((string) ($columns + 2)) . '">' . esc_html__('Nichts gefunden.', 'taxmod-label') . '</td></tr>';
     }
 
     /**
@@ -158,8 +188,9 @@ final class PrintersPage
     private function details(int $record, array $printers, array $rolls, array $active, \Closure $allowed, LabelService $service): string
     {
         $s      = $service->structure();
-        $form   = (string) apply_filters('taxmod_record_editor', '', $record, self::url(['satz' => $record]));
         $isRoll = isset($rolls[$record]);
+        $here   = $isRoll ? self::mediaUrl(...) : self::url(...);
+        $form   = (string) apply_filters('taxmod_record_editor', '', $record, $here(['satz' => $record]));
         $name   = $isRoll ? $rolls[$record] : $printers[$record];
         if ($isRoll) {
             $holders = array_filter($active, static fn (array $p): bool => ($p['roll_name'] ?? '') === $name);
@@ -175,7 +206,7 @@ final class PrintersPage
             $actions = $this->changeRollDialog($record, $name, $rolls, $service);
         }
 
-        return '<p><a href="' . esc_url(self::url()) . '">' . esc_html__('← Drucker und Rollen', 'taxmod-label') . '</a></p>'
+        return '<p><a href="' . esc_url($here()) . '">' . esc_html($isRoll ? __('← Druckmedium', 'taxmod-label') : __('← Drucker', 'taxmod-label')) . '</a></p>'
             . '<h2>' . esc_html($name) . '</h2>'
             . '<div style="text-align:right;margin-bottom:12px">' . $actions . '</div>'
             . ListPage::beside($form, '<table class="widefat striped">' . $facts . '</table>');
