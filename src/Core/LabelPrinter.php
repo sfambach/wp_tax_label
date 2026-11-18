@@ -28,6 +28,9 @@ final class LabelPrinter
      * @param array<string, string> $turnOptions the same, added for a label turned on its page
      * @param array<string, string> $sizes       «62x30» (label width × height) ⇒ the PageSize the queue knows; «*» with {B}/{H}
      */
+    /** D-1333: the longest pause between two jobs, in seconds. */
+    public const MAX_PAUSE = 600;
+
     public function __construct(
         public readonly string $queue,
         public readonly array $options = [],
@@ -41,7 +44,12 @@ final class LabelPrinter
         public readonly bool $retries = false,
         /** Assumed field «Auflösung» (docs/konzept.md §10); 0 where the printer does not say. */
         public readonly float $dpi = 0.0,
+        /** D-1333: seconds the service waits after each job on this printer; the Phomemo swallows labels sent too fast. */
+        public readonly int $pauseSeconds = 0,
     ) {
+        if ($pauseSeconds < 0 || $pauseSeconds > self::MAX_PAUSE) {
+            throw new \InvalidArgumentException(sprintf('A pause of %d s is not between 0 and %d.', $pauseSeconds, self::MAX_PAUSE));
+        }
         if (preg_match(self::NAME, $queue) !== 1) {
             throw new \InvalidArgumentException(sprintf('«%s» is not a CUPS queue name.', $queue));
         }
@@ -94,11 +102,11 @@ final class LabelPrinter
         return new Resolution($this->dpi > 0.0 ? $this->dpi : Resolution::DEFAULT_DPI);
     }
 
-    /** @return array{queue: string, options: array<string, string>, turn: bool, name: string, offset: float, line: float, roll: float, turn_options: array<string, string>, sizes: array<string, string>, retry: bool} */
+    /** @return array{queue: string, options: array<string, string>, turn: bool, name: string, offset: float, line: float, roll: float, turn_options: array<string, string>, sizes: array<string, string>, retry: bool, dpi: float, pause: int} */
     public function toArray(): array
     {
         return ['queue' => $this->queue, 'options' => $this->options, 'turn' => $this->turnsLabel, 'name' => $this->name, 'offset' => $this->offsetMm,
-            'line' => $this->lineMm, 'roll' => $this->rollMm, 'turn_options' => $this->turnOptions, 'sizes' => $this->sizes, 'retry' => $this->retries, 'dpi' => $this->dpi];
+            'line' => $this->lineMm, 'roll' => $this->rollMm, 'turn_options' => $this->turnOptions, 'sizes' => $this->sizes, 'retry' => $this->retries, 'dpi' => $this->dpi, 'pause' => $this->pauseSeconds];
     }
 
     /**
@@ -135,6 +143,7 @@ final class LabelPrinter
             // D-1234: whether CUPS may try a failed job again by itself; off unless the printer says so.
             $yes($raw['retry'] ?? false),
             $mm('dpi') >= 50.0 && $mm('dpi') <= 2400.0 ? $mm('dpi') : 0.0,
+            max(0, min(self::MAX_PAUSE, (int) round($mm('pause')))),
         );
     }
 

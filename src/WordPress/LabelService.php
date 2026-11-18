@@ -82,14 +82,22 @@ final class LabelService
             return $this->catalog;
         }
         ['table' => $table, 'categories' => $categories, 'node_of' => $nodeOf] = $this->records();
+        $s        = $this->structure();
+        $printers = $s->hasNode('label_printer') ? $this->table('label_printer') : null;
+        // D-1333: the pause is a unit value of its own; all of them read in one go (CD-7).
+        $parts    = $printers === null || ! $s->hasField('printer_pause') ? [] : array_values(array_filter(array_map(
+            static fn (int $id): int => (int) $printers->first($id, $s->field('printer_pause')),
+            $printers->ids()
+        )));
 
         return $this->catalog = LabelCatalog::from(
-            $this->structure(),
+            $s,
             $table,
             array_map(static fn (int $node): string => $categories[$node] ?? '', $nodeOf),
             $nodeOf,
-            $this->structure()->hasNode('label_printer') ? $this->table('label_printer') : null,
+            $printers,
             $this->rollTable(),
+            $parts === [] ? null : new Table($this->door->valuesOf($parts)),
         );
     }
 

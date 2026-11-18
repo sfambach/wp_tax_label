@@ -140,7 +140,7 @@ final class LabelRender
             $printer = null;
             $name    = '';
         }
-        $delivery = ['roll' => $format->rollMm] + ($printer === null ? [] : ['queue' => $printer->queue, 'options' => $printer->optionsFor($format), 'retry' => $printer->retries ? 1 : 0]);
+        $delivery = ['roll' => $format->rollMm] + ($printer === null ? [] : ['queue' => $printer->queue, 'options' => $printer->optionsFor($format), 'retry' => $printer->retries ? 1 : 0, 'pause' => $printer->pauseSeconds]);
 
         return (new ModelDoor())->queuePrint($pdf, $name !== '' ? $name : $format->key, $label->code, $label->title, $one['copies'], $delivery);
     }
