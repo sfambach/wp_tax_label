@@ -117,13 +117,17 @@ final class PrintersPage
         if ($chosen > 0 && isset($printers[$chosen])) {
             return $this->details($chosen, $printers, $rolls, $active, $allowed, $service);
         }
-        $body = '';
+        $body  = '';
+        $state = $s->hasField('printer_active') ? $service->table('label_printer') : null;
         foreach ($printers as $id => $name) {
             $printer = $active[$id] ?? null;
+            // D-1231: a printer is active unless its switch says no; switched off, it is no fault of queue or roll.
+            $on      = $state === null || trim((string) $state->first($id, $s->field('printer_active'))) !== '0';
             $body   .= '<tr><th scope="row" class="check-column"></th>'
                 // Stefan, 2026-11-18: the set-up stands in the printer's own view, not in the list.
                 . '<td><a href="' . esc_url(self::url(['satz' => $id])) . '"><strong>' . esc_html($name) . '</strong></a></td>'
-                . '<td>' . esc_html($printer === null ? __('— (Warteschlange oder Rolle fehlt)', 'taxmod-label') : $printer['queue']) . '</td>'
+                . '<td>' . esc_html($on ? __('Ja', 'taxmod-label') : __('Nein', 'taxmod-label')) . '</td>'
+                . '<td>' . esc_html($printer !== null ? $printer['queue'] : ($on ? __('— (Warteschlange oder Rolle fehlt)', 'taxmod-label') : '—')) . '</td>'
                 . '<td>' . esc_html(($printer['dpi'] ?? 0) > 0 ? $printer['dpi'] . ' dpi' : '203 dpi*') . '</td>'
                 . '<td>' . esc_html($printer['roll_name'] ?? '—') . '</td>'
                 . '<td>' . esc_html($allowed($printer)) . '</td>'
@@ -141,7 +145,7 @@ final class PrintersPage
             . (isset($_GET['testdruck']) ? '<div class="notice notice-success inline"><p>' . esc_html(sprintf(/* translators: %d: job number */ __('Testdruck wartet als Auftrag %d auf den Druckdienst.', 'taxmod-label'), absint($_GET['testdruck']))) . '</p></div>' : '')
             . (isset($_GET['vorschau']) ? '<div class="notice notice-success inline"><p>' . esc_html__('Gespeichert.', 'taxmod-label') . '</p></div>' : '')
             . $help
-            . ListPage::table([[__('Drucker', 'taxmod-label'), '14em'], [__('Warteschlange', 'taxmod-label'), '12em'], [__('Auflösung', 'taxmod-label'), '7em'], [__('Eingelegte Rolle', 'taxmod-label'), '14em'], [__('Erlaubte Etiketten', 'taxmod-label'), '']], $body === '' ? $none(5) : $body)
+            . ListPage::table([[__('Drucker', 'taxmod-label'), '14em'], [__('Aktiv', 'taxmod-label'), '5em'], [__('Warteschlange', 'taxmod-label'), '12em'], [__('Auflösung', 'taxmod-label'), '7em'], [__('Eingelegte Rolle', 'taxmod-label'), '14em'], [__('Erlaubte Etiketten', 'taxmod-label'), '']], $body === '' ? $none(6) : $body)
             . '<p class="description">' . esc_html__('* ohne Angabe am Drucker prüft der Editor die Codes für 203 dpi.', 'taxmod-label') . '</p>'
             . $this->testPrints();
     }
