@@ -119,7 +119,7 @@ final class PrintersPage
             . ListPage::table([[__('Format', 'taxmod-label'), ''], [__('Größe', 'taxmod-label'), '9em'], ['', '8em']], $body);
     }
 
-    /** Einstellungen › Druck › Druck allgemein: settings that hold for every printer, starting with the dialog's preview switch. */
+    /** Einstellungen › Druck › Allgemein: settings that hold for every printer, starting with the dialog's preview switch. */
     public function general(): string
     {
         $switch = '<input type="hidden" name="' . esc_attr(LabelButton::PREVIEW_OPTION) . '" value="0"><label style="margin-right:.5em"><input type="checkbox" name="' . esc_attr(LabelButton::PREVIEW_OPTION) . '" value="1"'
