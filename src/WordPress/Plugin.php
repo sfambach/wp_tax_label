@@ -23,10 +23,10 @@ use TaxmodLabel\WordPress\Admin\PrintersPage;
  */
 final class Plugin
 {
-    public const VERSION = '0.0.1';
+    public const VERSION = '0.0.2';
 
-    /** D-1295: labelValues and queuePrint came with this modeller. */
-    public const MIN_MODELLER = '0.2.61';
+    /** D-1295: labelValues and queuePrint came with 0.2.61; DialogNumber stands at the edge since 0.2.133 (D-1431). */
+    public const MIN_MODELLER = '0.2.133';
 
     private static string $file = '';
 

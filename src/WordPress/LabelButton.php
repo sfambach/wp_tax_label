@@ -106,7 +106,7 @@ final class LabelButton
                     . esc_html(trim($filled->templateName . ' · ' . self::size($filled->format) . ($filled->printer === null ? '' : ' · ' . ($filled->printer->name !== '' ? $filled->printer->name : $filled->printer->queue)), ' ·')) . '</span>'))
             // D-1152, his word 2026-11-04: «Bei etikett druck anzahl mit aufnehmen» — the module says how many to start with.
             . '<label style="display:block;margin-bottom:.5em"><span style="display:block;font-weight:600">' . esc_html__('Anzahl', 'taxmod-label') . '</span>'
-            . \Taxmod\Core\Renderer\DialogNumber::input('copies', self::copies($copies), 1, self::MAX_COPIES) . '</label>'
+            . \Taxmod\WordPress\Draw\DialogNumber::input('copies', self::copies($copies), 1, self::MAX_COPIES) . '</label>'
             . '<span style="display:block">' . esc_html($label->code . ' · ' . $label->title . ($label->subtitle === '' ? '' : ' · ' . $label->subtitle)) . '</span>'
             . ($service ? '' : '<span class="description" style="display:block;margin-top:.5em">' . esc_html__('No print service set up: the label opens as PDF to print from the browser.', 'taxmod-label') . '</span>')
             . '</span>' . self::previewBox() . '</span>';
