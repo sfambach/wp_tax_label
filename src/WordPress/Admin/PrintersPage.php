@@ -26,6 +26,9 @@ final class PrintersPage
     /** Stefan 2026-11-18: «sependir doch mal den eitiktten einen eigenen menüpunkt Druckmedium» — the rolls, out of the printers page. */
     public const MEDIA_SLUG = 'taxmod-label-media';
 
+    /** Stefan 2026-11-18: «die einstellung unten Druckdialog würde ich dann in einen menüpunkt druck allgemein packen». */
+    public const GENERAL_SLUG = 'taxmod-label-print-general';
+
     public const ACTION = 'taxmod_label_printers';
 
     public static function boot(): void
@@ -43,6 +46,11 @@ final class PrintersPage
         return add_query_arg(['page' => 'taxmod-lager-modul', 'module' => self::MEDIA_SLUG] + $args, admin_url('admin.php'));
     }
 
+    public static function generalUrl(array $args = []): string
+    {
+        return add_query_arg(['page' => 'taxmod-lager-modul', 'module' => self::GENERAL_SLUG] + $args, admin_url('admin.php'));
+    }
+
     /** admin-post «Rolle wechseln»: capability → nonce → validate → act (D-1254). */
     public static function handle(): void
     {
@@ -57,8 +65,8 @@ final class PrintersPage
             ListPage::act(static function () use ($shown): string {
                 update_option(LabelButton::PREVIEW_OPTION, $shown ? '1' : '0', false);
 
-                return self::url(['vorschau' => 1]);
-            }, self::url());
+                return self::generalUrl(['vorschau' => 1]);
+            }, self::generalUrl());
         }
         if (str_starts_with($doing, 'test:')) {
             $key = sanitize_key(substr($doing, 5));
@@ -89,25 +97,37 @@ final class PrintersPage
         }, self::url());
     }
 
-    /** D-1439: the fixed formats with their test print, and the dialog's preview switch — both moved here from the modeller. */
-    private function testPrints(): string
+    private static function form(string $doing, string $fields, string $button): string
     {
-        $form = static fn (string $doing, string $fields, string $button): string => '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '" style="display:inline">'
+        return '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '" style="display:inline">'
             . '<input type="hidden" name="action" value="' . esc_attr(self::ACTION) . '">' . wp_nonce_field(self::ACTION, '_wpnonce', true, false)
             . $fields . '<button type="submit" class="button" name="do" value="' . esc_attr($doing) . '">' . esc_html($button) . '</button></form>';
+    }
+
+    /** D-1439: the fixed formats with their test print, moved here from the modeller. */
+    private function testPrints(): string
+    {
+        $form = self::form(...);
         $body = '';
         foreach (LabelFormat::shipped() as $format) {
             $body .= '<tr><th scope="row" class="check-column"></th><td>' . esc_html(LabelRender::formatName($format)) . '</td><td>' . esc_html(LabelButton::size($format)) . '</td>'
                 . '<td style="text-align:right">' . $form('test:' . $format->key, '', __('Testdruck', 'taxmod-label')) . '</td></tr>';
         }
-        $switch = '<input type="hidden" name="' . esc_attr(LabelButton::PREVIEW_OPTION) . '" value="0"><label style="margin-right:.5em"><input type="checkbox" name="' . esc_attr(LabelButton::PREVIEW_OPTION) . '" value="1"'
-            . checked(LabelButton::previewShown(), true, false) . '> ' . esc_html__('Vorschau des Etiketts im Druckdialog zeigen', 'taxmod-label') . '</label>';
 
         return '<h2>' . esc_html__('Feste Formate', 'taxmod-label') . '</h2>'
             . '<p class="description">' . esc_html__('Der Testdruck geht mit einem Beispiel an den Druckdienst.', 'taxmod-label') . '</p>'
-            . ListPage::table([[__('Format', 'taxmod-label'), ''], [__('Größe', 'taxmod-label'), '9em'], ['', '8em']], $body)
+            . ListPage::table([[__('Format', 'taxmod-label'), ''], [__('Größe', 'taxmod-label'), '9em'], ['', '8em']], $body);
+    }
+
+    /** Einstellungen › Druck › Druck allgemein: settings that hold for every printer, starting with the dialog's preview switch. */
+    public function general(): string
+    {
+        $switch = '<input type="hidden" name="' . esc_attr(LabelButton::PREVIEW_OPTION) . '" value="0"><label style="margin-right:.5em"><input type="checkbox" name="' . esc_attr(LabelButton::PREVIEW_OPTION) . '" value="1"'
+            . checked(LabelButton::previewShown(), true, false) . '> ' . esc_html__('Vorschau des Etiketts im Druckdialog zeigen', 'taxmod-label') . '</label>';
+
+        return (isset($_GET['vorschau']) ? '<div class="notice notice-success inline"><p>' . esc_html__('Gespeichert.', 'taxmod-label') . '</p></div>' : '')
             . '<h2>' . esc_html__('Druckdialog', 'taxmod-label') . '</h2>'
-            . '<p>' . $form('preview', $switch, __('Speichern', 'taxmod-label')) . '</p>';
+            . '<p>' . self::form('preview', $switch, __('Speichern', 'taxmod-label')) . '</p>';
     }
 
     public function render(): string
@@ -153,7 +173,6 @@ final class PrintersPage
 
         return (isset($_GET['gewechselt']) ? '<div class="notice notice-success inline"><p>' . esc_html__('Rolle gewechselt: der Drucker druckt jetzt die Etiketten der neuen Rolle.', 'taxmod-label') . '</p></div>' : '')
             . (isset($_GET['testdruck']) ? '<div class="notice notice-success inline"><p>' . esc_html(sprintf(/* translators: %d: job number */ __('Testdruck wartet als Auftrag %d auf den Druckdienst.', 'taxmod-label'), absint($_GET['testdruck']))) . '</p></div>' : '')
-            . (isset($_GET['vorschau']) ? '<div class="notice notice-success inline"><p>' . esc_html__('Gespeichert.', 'taxmod-label') . '</p></div>' : '')
             . $help
             . ListPage::table([[__('Drucker', 'taxmod-label'), '14em'], [__('Aktiv', 'taxmod-label'), '5em'], [__('Warteschlange', 'taxmod-label'), '12em'], [__('Auflösung', 'taxmod-label'), '7em'], [__('Eingelegte Rolle', 'taxmod-label'), '14em'], [__('Erlaubte Etiketten', 'taxmod-label'), '']], $body === '' ? $none(6) : $body)
             . '<p class="description">' . esc_html__('* ohne Angabe am Drucker prüft der Editor die Codes für 203 dpi.', 'taxmod-label') . '</p>'
@@ -272,7 +291,8 @@ final class PrintersPage
         try {
             $s = (new LabelService())->structure();
             if ($s->hasNode('label_printer') && $nodeId === $s->node('label_printer') && $s->hasField('printer_loaded_roll')) {
-                $claims[$s->field('printer_loaded_roll')] = ['label' => __('Rolle wechseln', 'taxmod-label'), 'url' => self::url(['satz' => $recordId])];
+                // Stefan 2026-11-18: «Rolle wechseln» once, in the toolbar top left — the form shows the roll without a second button.
+                $claims[$s->field('printer_loaded_roll')] = ['label' => __('Rolle wechseln', 'taxmod-label'), 'url' => ''];
             }
         } catch (\RuntimeException) {
             return $claims;
