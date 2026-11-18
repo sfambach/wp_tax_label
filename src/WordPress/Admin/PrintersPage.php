@@ -117,14 +117,12 @@ final class PrintersPage
         if ($chosen > 0 && isset($printers[$chosen])) {
             return $this->details($chosen, $printers, $rolls, $active, $allowed, $service);
         }
-        $setup = $s->hasField('printer_setup') ? $service->table('label_printer') : null;
-        $body  = '';
+        $body = '';
         foreach ($printers as $id => $name) {
             $printer = $active[$id] ?? null;
-            $howto   = $setup === null ? '' : trim((string) $setup->first($id, $s->field('printer_setup')));
             $body   .= '<tr><th scope="row" class="check-column"></th>'
-                . '<td><a href="' . esc_url(self::url(['satz' => $id])) . '"><strong>' . esc_html($name) . '</strong></a>'
-                . ($howto === '' ? '' : '<details><summary>' . esc_html__('Einrichtung', 'taxmod-label') . '</summary><div>' . esc_html($howto) . '</div></details>') . '</td>'
+                // Stefan, 2026-11-18: the set-up stands in the printer's own view, not in the list.
+                . '<td><a href="' . esc_url(self::url(['satz' => $id])) . '"><strong>' . esc_html($name) . '</strong></a></td>'
                 . '<td>' . esc_html($printer === null ? __('— (Warteschlange oder Rolle fehlt)', 'taxmod-label') : $printer['queue']) . '</td>'
                 . '<td>' . esc_html(($printer['dpi'] ?? 0) > 0 ? $printer['dpi'] . ' dpi' : '203 dpi*') . '</td>'
                 . '<td>' . esc_html($printer['roll_name'] ?? '—') . '</td>'
