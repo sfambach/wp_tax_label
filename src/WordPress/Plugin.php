@@ -23,7 +23,7 @@ use TaxmodLabel\WordPress\Admin\PrintersPage;
  */
 final class Plugin
 {
-    public const VERSION = '0.0.11';
+    public const VERSION = '0.0.12';
 
     /** D-1295: labelValues and queuePrint came with 0.2.61; DialogNumber stands at the edge since 0.2.133 (D-1431). */
     public const MIN_MODELLER = '0.2.133';
@@ -82,6 +82,7 @@ final class Plugin
         $pages[] = ['slug' => LabelsPage::SLUG, 'label' => __('Etiketten', 'taxmod-label'), 'area' => 'print', 'capability' => \Taxmod\WordPress\Plugin::CAPABILITY, 'render' => static fn (): string => (new LabelsPage())->render()];
         $pages[] = ['slug' => PrintersPage::SLUG, 'label' => __('Drucker', 'taxmod-label'), 'area' => 'print', 'capability' => \Taxmod\WordPress\Plugin::CAPABILITY, 'render' => static fn (): string => (new PrintersPage())->render()];
         $pages[] = ['slug' => PrintersPage::MEDIA_SLUG, 'label' => __('Druckmedium', 'taxmod-label'), 'area' => 'print', 'capability' => \Taxmod\WordPress\Plugin::CAPABILITY, 'render' => static fn (): string => (new PrintersPage())->media()];
+        $pages[] = ['slug' => PrintersPage::GENERAL_SLUG, 'label' => __('Druck allgemein', 'taxmod-label'), 'area' => 'print', 'capability' => \Taxmod\WordPress\Plugin::CAPABILITY, 'render' => static fn (): string => (new PrintersPage())->general()];
 
         return $pages;
     }
