@@ -90,7 +90,7 @@ final class LabelCatalog
             $queue = $text($printers, $id, 'printer_queue');
             $roll  = (int) $text($printers, $id, 'printer_loaded_roll');
             // D-1231: his wish 2026-11-08 «Drucker deaktivieren» — a printer switched off is not offered.
-            if ($queue === '' || $roll <= 0 || ! $rolls->has($roll) || $text($printers, $id, 'printer_active') === '0') {
+            if ($queue === '' || $roll <= 0 || ! $rolls->has($roll) || ! LabelPrinter::isOn($text($printers, $id, 'printer_active'))) {
                 continue;
             }
             $out[$id] = [

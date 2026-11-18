@@ -8,6 +8,15 @@ use TaxmodLabel\Core\LabelPrinter;
 /** D-1333: the printer's pause travels with its jobs — it came from the modeller's printer and must not get lost (D-1296). */
 final class PrinterTest extends TestCase
 {
+    public function testAPrinterIsOnUnlessItsSwitchSaysNo(): void
+    {
+        self::assertTrue(LabelPrinter::isOn(null), 'no switch stored: on (D-1231)');
+        self::assertTrue(LabelPrinter::isOn(''));
+        self::assertTrue(LabelPrinter::isOn('1'));
+        self::assertFalse(LabelPrinter::isOn('0'));
+        self::assertFalse(LabelPrinter::isOn(' 0 '));
+    }
+
     public function testThePauseIsReadAndKeptWithinItsBounds(): void
     {
         self::assertSame(5, LabelPrinter::fromArray(['queue' => 'Phomemo_M220L', 'pause' => '5'])->pauseSeconds);

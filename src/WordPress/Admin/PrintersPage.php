@@ -6,6 +6,7 @@ use Taxmod\WordPress\Admin\ListPage;
 use Taxmod\WordPress\Plugin as Modeller;
 use TaxmodLabel\Core\LabelContent;
 use TaxmodLabel\Core\LabelFormat;
+use TaxmodLabel\Core\LabelPrinter;
 use TaxmodLabel\Core\PrinterMedia;
 use TaxmodLabel\WordPress\LabelButton;
 use TaxmodLabel\WordPress\LabelRender;
@@ -121,8 +122,8 @@ final class PrintersPage
         $state = $s->hasField('printer_active') ? $service->table('label_printer') : null;
         foreach ($printers as $id => $name) {
             $printer = $active[$id] ?? null;
-            // D-1231: a printer is active unless its switch says no; switched off, it is no fault of queue or roll.
-            $on      = $state === null || trim((string) $state->first($id, $s->field('printer_active'))) !== '0';
+            // D-1231: switched off, a missing queue or roll is no fault.
+            $on      = $state === null || LabelPrinter::isOn($state->first($id, $s->field('printer_active')));
             $body   .= '<tr><th scope="row" class="check-column"></th>'
                 // Stefan, 2026-11-18: the set-up stands in the printer's own view, not in the list.
                 . '<td><a href="' . esc_url(self::url(['satz' => $id])) . '"><strong>' . esc_html($name) . '</strong></a></td>'

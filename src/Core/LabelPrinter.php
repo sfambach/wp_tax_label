@@ -31,6 +31,12 @@ final class LabelPrinter
     /** D-1333: the longest pause between two jobs, in seconds. */
     public const MAX_PAUSE = 600;
 
+    /** D-1231: a printer is on unless its switch says no — a printer without a stored switch prints. */
+    public static function isOn(?string $stored): bool
+    {
+        return trim((string) $stored) !== '0';
+    }
+
     public function __construct(
         public readonly string $queue,
         public readonly array $options = [],
