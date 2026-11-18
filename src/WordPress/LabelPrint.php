@@ -5,7 +5,6 @@ namespace TaxmodLabel\WordPress;
 use Taxmod\Core\Printing\LabelPrefix;
 use Taxmod\WordPress\Plugin as Modeller;
 use TaxmodLabel\Core\LabelContent;
-use TaxmodLabel\Core\LabelDocument;
 use TaxmodLabel\Core\LabelFormat;
 
 /**
@@ -81,8 +80,8 @@ final class LabelPrint
         }
 
         try {
-            return LabelDocument::render($formats[$format], [$label]);
-        } catch (\InvalidArgumentException $e) {
+            return LabelRender::run([['label' => $label, 'copies' => 1, 'format' => $formats[$format]]], LabelRender::TO_PDF)['pdf'] ?? '';
+        } catch (\RuntimeException | \InvalidArgumentException $e) {
             return new \WP_Error('taxmod_label_layout', $e->getMessage());
         }
     }

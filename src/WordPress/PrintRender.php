@@ -4,7 +4,6 @@ namespace TaxmodLabel\WordPress;
 
 use TaxmodLabel\Core\FilledLabel;
 use TaxmodLabel\Core\LabelContent;
-use TaxmodLabel\Core\LabelDocument;
 use TaxmodLabel\Core\LabelFormat;
 use TaxmodLabel\Core\LabelProblems;
 
@@ -29,14 +28,16 @@ final class PrintRender
      */
     public static function render(array $row): ?array
     {
-        $copies = max(1, (int) ($row['copies'] ?? 1));
+        $copies = LabelButton::copies((int) ($row['copies'] ?? 1));
+        $label  = new LabelContent((string) ($row['code'] ?? ''), (string) ($row['title'] ?? ''), (string) ($row['subtitle'] ?? ''));
         try {
+            // D-1439: drawn through the one render path, as every other label.
             if (is_string($row['document'] ?? null) && $row['document'] !== '') {
                 $filled  = FilledLabel::fromJson($row['document']);
                 $printer = $filled->printer;
 
                 return [
-                    'pdf'    => $filled->render($copies, false, null, LabelService::pictures($filled->layout->media())),
+                    'pdf'    => LabelRender::run([['label' => $label, 'copies' => $copies, 'filled' => $filled]], LabelRender::TO_PDF)['pdf'] ?? '',
                     'format' => $filled->format->key,
                     'roll'   => $filled->format->rollMm,
                 ] + ($printer === null ? [] : ['queue' => $printer->queue, 'options' => $printer->optionsFor($filled->format), 'retry' => $printer->retries]);
@@ -45,10 +46,9 @@ final class PrintRender
             if ($format === null) {
                 return null;
             }
-            $label = new LabelContent((string) ($row['code'] ?? ''), (string) ($row['title'] ?? ''), (string) ($row['subtitle'] ?? ''));
 
-            return ['pdf' => LabelDocument::render($format, array_fill(0, $copies, $label)), 'format' => $format->key, 'roll' => $format->rollMm];
-        } catch (LabelProblems | \InvalidArgumentException) {
+            return ['pdf' => LabelRender::run([['label' => $label, 'copies' => $copies, 'format' => $format]], LabelRender::TO_PDF)['pdf'] ?? '', 'format' => $format->key, 'roll' => $format->rollMm];
+        } catch (LabelProblems | \RuntimeException | \InvalidArgumentException) {
             return null;
         }
     }

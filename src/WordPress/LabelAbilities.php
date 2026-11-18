@@ -130,7 +130,7 @@ final class LabelAbilities
             throw new LabelProblems(array_values(array_filter($problems, static fn (Problem $p): bool => $p->error)));
         }
         $filled = self::filled($after);
-        $pdf    = ! empty($input['pdf']) && $filled !== null ? ['pdf' => base64_encode($filled->render(1, true, null, LabelService::pictures($filled->layout->media())))] : [];
+        $pdf    = ! empty($input['pdf']) && $filled !== null ? ['pdf' => base64_encode(LabelRender::run([['label' => new \TaxmodLabel\Core\LabelContent($filled->code(), $filled->title()), 'copies' => 1, 'filled' => $filled]], LabelRender::TO_PDF, true)['pdf'] ?? '')] : [];
         $warn   = ['warnings' => ProblemWords::list($problems)];
 
         if (! empty($input['dry_run'])) {
@@ -201,10 +201,10 @@ final class LabelAbilities
         if ($filled === null) {
             throw LabelError::notALabel('#' . $template);
         }
-        $pictures = LabelService::pictures($filled->layout->media());
-        $answer   = ['code' => $code, 'title' => $label->title, 'label' => $filled->templateName, 'queue' => $filled->printer?->queue ?? '', 'copies' => $copies, 'values' => $filled->values];
+        $answer = ['code' => $code, 'title' => $label->title, 'label' => $filled->templateName, 'queue' => $filled->printer?->queue ?? '', 'copies' => $copies, 'values' => $filled->values];
         if (! empty($input['pdf'])) {
-            $answer['pdf'] = base64_encode($filled->render(1, true, null, $pictures));
+            // D-1239: one copy, as the dialog's preview draws it (D-1228).
+            $answer['pdf'] = base64_encode(LabelRender::run([['label' => $label, 'copies' => 1, 'filled' => $filled]], LabelRender::TO_PDF, true)['pdf'] ?? '');
         }
         if (! empty($input['dry_run'])) {
             return $answer + ['job' => 0];
@@ -213,7 +213,7 @@ final class LabelAbilities
             throw new \RuntimeException(__('The print service is not set up.', 'taxmod-label'));
         }
 
-        return $answer + ['job' => LabelButton::queue($filled, $label, $copies, $pictures)];
+        return $answer + ['job' => LabelButton::queue($filled, $label, $copies)];
     }
 
     /**

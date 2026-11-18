@@ -10,7 +10,6 @@ use Taxmod\WordPress\Plugin as Modeller;
 use Taxmod\WordPress\Printing\PrintService;
 use TaxmodLabel\Core\FilledLabel;
 use TaxmodLabel\Core\LabelContent;
-use TaxmodLabel\Core\LabelDocument;
 use TaxmodLabel\Core\LabelError;
 use TaxmodLabel\Core\LabelFormat;
 use TaxmodLabel\Core\LabelProblems;
@@ -190,14 +189,14 @@ final class LabelButton
             if ($label === null) {
                 self::fail(esc_html__('A label needs a known format, a code like O-123 and a title.', 'taxmod-label'), 400, $post ?? []);
             }
-            $pictures = LabelService::pictures($filled->layout->media());
             if (($post['how'] ?? '') === 'service' && self::serviceIsSetUp()) {
-                $id = self::queue($filled, $label, $copies, $pictures, $post);
+                $id = self::queue($filled, $label, $copies, $post);
                 self::answerQueued($post, $id);
                 wp_safe_redirect(add_query_arg('taxmod_label_job', $id, wp_get_referer() ?: admin_url('admin.php')));
                 exit;
             }
-            self::sendPdf(self::drawn(static fn (): string => $filled->render($copies, ! empty($post['preview']), null, $pictures), $post), $label->code);
+            $one = [['label' => $label, 'copies' => $copies, 'filled' => $filled]];
+            self::sendPdf(self::drawn(static fn (): string => LabelRender::run($one, LabelRender::TO_PDF, ! empty($post['preview']))['pdf'] ?? '', $post), $label->code);
         }
 
         $formats = LabelFormat::shipped();
@@ -207,36 +206,27 @@ final class LabelButton
             self::fail(esc_html__('A label needs a known format, a code like O-123 and a title.', 'taxmod-label'), 400, $post ?? []);
         }
 
+        $one = [['label' => $label, 'copies' => $copies, 'format' => $format]];
         if (($post['how'] ?? '') === 'service' && self::serviceIsSetUp()) {
-            $pdf = self::drawn(static fn (): string => LabelDocument::render($format, array_fill(0, $copies, $label)), $post);
-            $id  = self::queuePdf($pdf, $format, $label, $copies, null);
+            $id = (int) self::drawn(static fn (): string => (string) (LabelRender::run($one, LabelRender::TO_SERVICE)['jobs'][0] ?? 0), $post);
             self::answerQueued($post, $id);
             wp_safe_redirect(add_query_arg('taxmod_label_job', $id, wp_get_referer() ?: admin_url('admin.php')));
             exit;
         }
 
-        self::sendPdf(self::drawn(static fn (): string => LabelDocument::render($format, array_fill(0, $copies, $label)), $post), $label->code);
+        self::sendPdf(self::drawn(static fn (): string => LabelRender::run($one, LabelRender::TO_PDF)['pdf'] ?? '', $post), $label->code);
     }
 
     /**
      * D-1294: the label drawn here, all copies as pages, and handed to the modeller's print jobs with the printer's queue and
      * options — the print service prints the PDF as it is.
      *
-     * @param array<int, \TaxmodLabel\Core\Drawing\Picture> $pictures
      * @param array<string, mixed>                             $post
      */
-    public static function queue(FilledLabel $filled, LabelContent $label, int $copies, array $pictures, array $post = []): int
+    public static function queue(FilledLabel $filled, LabelContent $label, int $copies, array $post = []): int
     {
-        $pdf = self::drawn(static fn (): string => $filled->render($copies, false, null, $pictures), $post);
-
-        return self::queuePdf($pdf, $filled->format, $label, $copies, $filled->printer, $filled->templateName);
-    }
-
-    private static function queuePdf(string $pdf, LabelFormat $format, LabelContent $label, int $copies, ?\TaxmodLabel\Core\LabelPrinter $printer, string $name = ''): int
-    {
-        $delivery = ['roll' => $format->rollMm] + ($printer === null ? [] : ['queue' => $printer->queue, 'options' => $printer->optionsFor($format), 'retry' => $printer->retries ? 1 : 0]);
-
-        return (new ModelDoor())->queuePrint($pdf, $name !== '' ? $name : $format->key, $label->code, $label->title, $copies, $delivery);
+        // D-1439: through the one render path; the pictures come from the layout there.
+        return (int) self::drawn(static fn (): string => (string) (LabelRender::run([['label' => $label, 'copies' => $copies, 'filled' => $filled]], LabelRender::TO_SERVICE)['jobs'][0] ?? 0), $post);
     }
 
     /**

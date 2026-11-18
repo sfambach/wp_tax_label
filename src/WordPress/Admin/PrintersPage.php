@@ -4,6 +4,10 @@ namespace TaxmodLabel\WordPress\Admin;
 
 use Taxmod\WordPress\Admin\ListPage;
 use Taxmod\WordPress\Plugin as Modeller;
+use TaxmodLabel\Core\LabelContent;
+use TaxmodLabel\Core\LabelFormat;
+use TaxmodLabel\WordPress\LabelButton;
+use TaxmodLabel\WordPress\LabelRender;
 use TaxmodLabel\WordPress\LabelService;
 
 /**
@@ -35,6 +39,28 @@ final class PrintersPage
             ListPage::fail(__('Keine Berechtigung.', 'taxmod-label'), self::url());
         }
         ListPage::nonce(self::ACTION);
+        $doing = sanitize_text_field(wp_unslash((string) ($_POST['do'] ?? 'roll')));
+        // D-1439: the test print of the fixed formats and the dialog's preview switch moved here from the modeller.
+        if ($doing === 'preview') {
+            $shown = (string) ($_POST[LabelButton::PREVIEW_OPTION] ?? '0') === '1';
+            ListPage::act(static function () use ($shown): string {
+                update_option(LabelButton::PREVIEW_OPTION, $shown ? '1' : '0', false);
+
+                return self::url(['vorschau' => 1]);
+            }, self::url());
+        }
+        if (str_starts_with($doing, 'test:')) {
+            $key = sanitize_key(substr($doing, 5));
+            ListPage::act(static function () use ($key): string {
+                $formats = LabelFormat::shipped();
+                if (! isset($formats[$key])) {
+                    throw new \RuntimeException(__('Unbekanntes Format.', 'taxmod-label'));
+                }
+                $jobs = LabelRender::run([['label' => LabelContent::sample(), 'copies' => 1, 'format' => $formats[$key]]], LabelRender::TO_SERVICE)['jobs'];
+
+                return self::url(['testdruck' => (int) ($jobs[0] ?? 0)]);
+            }, self::url());
+        }
         $printer = absint($_POST['printer'] ?? 0);
         $roll    = absint($_POST['roll'] ?? 0);
         ListPage::act(static function () use ($printer, $roll): string {
@@ -42,6 +68,27 @@ final class PrintersPage
 
             return self::url(['gewechselt' => 1]);
         }, self::url());
+    }
+
+    /** D-1439: the fixed formats with their test print, and the dialog's preview switch — both moved here from the modeller. */
+    private function testPrints(): string
+    {
+        $form = static fn (string $doing, string $fields, string $button): string => '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '" style="display:inline">'
+            . '<input type="hidden" name="action" value="' . esc_attr(self::ACTION) . '">' . wp_nonce_field(self::ACTION, '_wpnonce', true, false)
+            . $fields . '<button type="submit" class="button" name="do" value="' . esc_attr($doing) . '">' . esc_html($button) . '</button></form>';
+        $body = '';
+        foreach (LabelFormat::shipped() as $format) {
+            $body .= '<tr><th scope="row" class="check-column"></th><td>' . esc_html(LabelRender::formatName($format)) . '</td><td>' . esc_html(LabelButton::size($format)) . '</td>'
+                . '<td style="text-align:right">' . $form('test:' . $format->key, '', __('Testdruck', 'taxmod-label')) . '</td></tr>';
+        }
+        $switch = '<input type="hidden" name="' . esc_attr(LabelButton::PREVIEW_OPTION) . '" value="0"><label style="margin-right:.5em"><input type="checkbox" name="' . esc_attr(LabelButton::PREVIEW_OPTION) . '" value="1"'
+            . checked(LabelButton::previewShown(), true, false) . '> ' . esc_html__('Vorschau des Etiketts im Druckdialog zeigen', 'taxmod-label') . '</label>';
+
+        return '<h2>' . esc_html__('Feste Formate', 'taxmod-label') . '</h2>'
+            . '<p class="description">' . esc_html__('Der Testdruck geht mit einem Beispiel an den Druckdienst.', 'taxmod-label') . '</p>'
+            . ListPage::table([[__('Format', 'taxmod-label'), ''], [__('Größe', 'taxmod-label'), '9em'], ['', '8em']], $body)
+            . '<h2>' . esc_html__('Druckdialog', 'taxmod-label') . '</h2>'
+            . '<p>' . $form('preview', $switch, __('Speichern', 'taxmod-label')) . '</p>';
     }
 
     public function render(): string
@@ -89,12 +136,15 @@ final class PrintersPage
             . '</ol></details>';
 
         return (isset($_GET['gewechselt']) ? '<div class="notice notice-success inline"><p>' . esc_html__('Rolle gewechselt: der Drucker druckt jetzt die Etiketten der neuen Rolle.', 'taxmod-label') . '</p></div>' : '')
+            . (isset($_GET['testdruck']) ? '<div class="notice notice-success inline"><p>' . esc_html(sprintf(/* translators: %d: job number */ __('Testdruck wartet als Auftrag %d auf den Druckdienst.', 'taxmod-label'), absint($_GET['testdruck']))) . '</p></div>' : '')
+            . (isset($_GET['vorschau']) ? '<div class="notice notice-success inline"><p>' . esc_html__('Gespeichert.', 'taxmod-label') . '</p></div>' : '')
             . $help
             . ListPage::table([[__('Drucker', 'taxmod-label'), '14em'], [__('Warteschlange', 'taxmod-label'), '12em'], [__('Auflösung', 'taxmod-label'), '7em'], [__('Eingelegte Rolle', 'taxmod-label'), '14em'], [__('Erlaubte Etiketten', 'taxmod-label'), '']], $body === '' ? $none(5) : $body)
             . '<p class="description">' . esc_html__('* ohne Angabe am Drucker prüft der Editor die Codes für 203 dpi.', 'taxmod-label') . '</p>'
             . '<h2>' . esc_html__('Rollen', 'taxmod-label') . '</h2>'
             . '<p class="description">' . esc_html__('Eine Rolle nennt ihre Breite und die Etiketten, die auf ihr gedruckt werden dürfen.', 'taxmod-label') . '</p>'
-            . ListPage::table([[__('Rolle', 'taxmod-label'), '']], $rollBody === '' ? $none(1) : $rollBody);
+            . ListPage::table([[__('Rolle', 'taxmod-label'), '']], $rollBody === '' ? $none(1) : $rollBody)
+            . $this->testPrints();
     }
 
     /**
