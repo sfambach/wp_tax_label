@@ -3,6 +3,7 @@
 namespace TaxmodLabel\WordPress\Admin;
 
 use Taxmod\WordPress\Admin\ListPage;
+use Taxmod\WordPress\Draw\ToggleMarkup;
 use Taxmod\WordPress\Plugin as Modeller;
 use TaxmodLabel\Core\LabelContent;
 use TaxmodLabel\Core\LabelFormat;
@@ -72,6 +73,14 @@ final class PrintersPage
             }, self::url());
         }
         $printer = absint($_POST['printer'] ?? 0);
+        if ($doing === 'active') {
+            $on = (string) ($_POST['on'] ?? '') === '1';
+            ListPage::act(static function () use ($printer, $on): string {
+                (new LabelService())->switchPrinter($printer, $on);
+
+                return self::url(['geschaltet' => 1]);
+            }, self::url());
+        }
         $roll    = absint($_POST['roll'] ?? 0);
         ListPage::act(static function () use ($printer, $roll): string {
             (new LabelService())->changeRoll($printer, $roll);
@@ -127,7 +136,7 @@ final class PrintersPage
             $body   .= '<tr><th scope="row" class="check-column"></th>'
                 // Stefan, 2026-11-18: the set-up stands in the printer's own view, not in the list.
                 . '<td><a href="' . esc_url(self::url(['satz' => $id])) . '"><strong>' . esc_html($name) . '</strong></a></td>'
-                . '<td>' . esc_html($on ? __('Ja', 'taxmod-label') : __('Nein', 'taxmod-label')) . '</td>'
+                . '<td>' . ($state === null ? '—' : self::activeSwitch($id, $name, $on)) . '</td>'
                 . '<td>' . esc_html($printer !== null ? $printer['queue'] : ($on ? __('— (Warteschlange oder Rolle fehlt)', 'taxmod-label') : '—')) . '</td>'
                 . '<td>' . esc_html(($printer['dpi'] ?? 0) > 0 ? $printer['dpi'] . ' dpi' : '203 dpi*') . '</td>'
                 . '<td>' . esc_html($printer['roll_name'] ?? '—') . '</td>'
@@ -235,6 +244,41 @@ final class PrintersPage
             // D-1308: the page's buttons stand in the one toolbar, top left — not on a line of their own on the right (Stefan, 2026-11-18).
             . ListPage::toolbar([$actions])
             . ListPage::beside($form, '<table class="widefat striped">' . $facts . '</table>');
+    }
+
+    /**
+     * D-1231: the printer's on/off switch in its row — the modeller's look (ToggleMarkup), sent in the background like every act (D-1408).
+     */
+    private static function activeSwitch(int $printer, string $name, bool $on): string
+    {
+        $title = sprintf($on ? /* translators: %s: printer */ __('%s abschalten', 'taxmod-label') : /* translators: %s: printer */ __('%s einschalten', 'taxmod-label'), $name);
+
+        return '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '" style="display:inline">'
+            . '<input type="hidden" name="action" value="' . esc_attr(self::ACTION) . '"><input type="hidden" name="printer" value="' . esc_attr((string) $printer) . '">'
+            . '<input type="hidden" name="on" value="' . ($on ? '0' : '1') . '">' . wp_nonce_field(self::ACTION, '_wpnonce', true, false)
+            . '<button type="submit" name="do" value="active" class="button-link" role="switch" aria-checked="' . ($on ? 'true' : 'false') . '" title="' . esc_attr($title) . '" aria-label="' . esc_attr($title) . '">'
+            . ToggleMarkup::track($on) . '</button></form>';
+    }
+
+    /**
+     * D-1441, D-1233 alike: «Eingelegte Rolle» changes only through «Rolle wechseln», which keeps it among the printer's media; the
+     * record editor shows it read-only with that button (D-1334).
+     *
+     * @return array<int, array{label: string, url: string}>
+     */
+    public static function claimedFields(mixed $claims, int $recordId, int $nodeId): array
+    {
+        $claims = is_array($claims) ? $claims : [];
+        try {
+            $s = (new LabelService())->structure();
+            if ($s->hasNode('label_printer') && $nodeId === $s->node('label_printer') && $s->hasField('printer_loaded_roll')) {
+                $claims[$s->field('printer_loaded_roll')] = ['label' => __('Rolle wechseln', 'taxmod-label'), 'url' => self::url(['satz' => $recordId])];
+            }
+        } catch (\RuntimeException) {
+            return $claims;
+        }
+
+        return $claims;
     }
 
     /** @param array<int, string> $rolls */

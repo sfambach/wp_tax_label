@@ -217,6 +217,17 @@ final class LabelService
         return $this->door->fieldWords($rolls, [$s->field('medium_kind')])[$s->field('medium_kind')] ?? [];
     }
 
+    /** D-1231: the printer on or off; one write, one change number for Undo (D-1410). */
+    public function switchPrinter(int $printer, bool $on): void
+    {
+        $s = $this->structure();
+        if (! $s->hasNode('label_printer') || ! $s->hasField('printer_active') || ! $this->table('label_printer')->has($printer)) {
+            throw LabelError::notAPrinter('#' . $printer);
+        }
+        $this->door->write([['op' => 'set_values', 'record' => (string) $printer, 'values' => [(string) $s->field('printer_active') => $on ? '1' : '0']]]);
+        $this->forget();
+    }
+
     /** D-1192: the printer now holds that roll; one write, undone by changing back. */
     public function changeRoll(int $printer, int $roll): void
     {

@@ -23,7 +23,7 @@ use TaxmodLabel\WordPress\Admin\PrintersPage;
  */
 final class Plugin
 {
-    public const VERSION = '0.0.10';
+    public const VERSION = '0.0.11';
 
     /** D-1295: labelValues and queuePrint came with 0.2.61; DialogNumber stands at the edge since 0.2.133 (D-1431). */
     public const MIN_MODELLER = '0.2.133';
@@ -64,6 +64,7 @@ final class Plugin
         add_action('wp_abilities_api_init', static fn () => (new LabelAbilities())->register());
         add_action('rest_api_init', static fn () => (new EditorRoutes())->register());
         add_filter('taxmod_logistics_pages', self::pages(...));
+        add_filter('taxmod_claimed_fields', [PrintersPage::class, 'claimedFields'], 10, 3);
         LabelsPage::boot();
         if (self::handlesAdminActions()) {
             LabelButton::wireActions();
