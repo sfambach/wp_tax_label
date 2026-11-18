@@ -25,15 +25,34 @@ final class DrawingTest extends TestCase
         self::assertEqualsWithDelta(5 / (300 / 25.4), (new Resolution(300.0))->minimumMm(3, 0.35), 1e-9, 'at 300 dpi 0.35 mm needs 5 dots');
     }
 
-    public function testACodeTooSmallToScanIsAnError(): void
+    public function testACodeUnderTheRecommendedSizeIsAWarningAndStillDrawn(): void
     {
+        // D-1443: under the minimum it is drawn at the whole dots that fit, with a warning; refused only where not one dot fits.
         $layout = LabelLayout::fromJson('[{"type":"qr","field":"code","x":0,"y":0,"w":6},{"type":"code128","field":"code","x":0,"y":8,"w":10,"h":8}]');
         [, $problems] = LabelDocument::svg(40, 30, $layout, ['code' => 'M-45704']);
-        self::assertSame([Problem::TOO_SMALL, Problem::TOO_SMALL], array_map(static fn (Problem $p): string => $p->code, $problems));
+        self::assertSame([[Problem::TOO_SMALL, false], [Problem::TOO_SMALL, true]], array_map(static fn (Problem $p): array => [$p->code, $p->error], $problems));
         self::assertEqualsWithDelta(10.9, $problems[0]->details['needMm'], 0.05);
 
         $this->expectException(LabelProblems::class);
         LabelDocument::renderLayout(new LabelFormat('x', 40, 30, 40), $layout, [['code' => 'M-45704']]);
+    }
+
+    /** D-1443: the X1 labels 50576 (QR 10 mm) and 61868 (QR 8 mm) as they stand live — printed at 203 dpi, with a warning. */
+    public function testTheX1LabelsPrintWithAWarning(): void
+    {
+        $cases = [
+            '50576' => [27, 12, '[{"type": "qr", "field": "code", "x": 2, "y": 1, "w": 10, "h": 10, "example": "M-12345"}, {"type": "text", "field": "node", "x": 17, "y": 0.3, "w": 10, "h": 3, "pt": 7, "center": true, "example": "Widerstand"}, {"type": "text", "field": "Widerstandswert|Kapazität|Induktivität|Farbe|Typ", "x": 17, "y": 3.4, "w": 10, "h": 4.6, "pt": 11, "short": true, "center": true, "example": "24k"}, {"type": "text", "field": "Bauform", "x": 17, "y": 8.2, "w": 10, "h": 3.5, "pt": 9, "center": true, "example": "0603"}]'],
+            '61868' => [40, 12, '[{"type": "text", "field": "Widerstandswert|Kapazität|Induktivität|Farbe|Typ", "x": 2.5, "y": 0.8, "w": 9, "h": 6.4, "pt": 13, "example": "30k", "short": true}, {"type": "text", "field": "Bauform", "x": 2.5, "y": 7.6, "w": 9, "h": 4, "pt": 10, "example": "1206"}, {"type": "line", "x": 12, "y": 0, "w": 0.2, "h": 12}, {"type": "qr", "field": "code", "x": 18.5, "y": 2, "w": 8, "h": 8, "example": "M-12345"}, {"type": "text", "field": "Widerstandswert|Kapazität|Induktivität|Farbe|Typ", "x": 30.5, "y": 0.8, "w": 9, "h": 6.4, "pt": 13, "example": "30k", "short": true, "right": true}, {"type": "text", "field": "Bauform", "x": 30.5, "y": 7.6, "w": 9, "h": 4, "pt": 10, "example": "1206", "right": true}]'],
+        ];
+        foreach ($cases as $id => [$w, $h, $json]) {
+            $layout = LabelLayout::fromJson($json);
+            $values = $layout->examples() + ['code' => 'M-12345'];
+            [, $problems] = LabelDocument::svg($w, $h, $layout, $values, new Resolution(203.0));
+            self::assertFalse(Problem::hasError($problems), $id . ': no refusal');
+            self::assertContains(Problem::TOO_SMALL, array_map(static fn (Problem $p): string => $p->code, $problems), $id . ': the warning stands');
+            $pdf = LabelDocument::renderLayout(new LabelFormat('x' . $id, $w, $h, 12), $layout, [$values], new Resolution(203.0));
+            self::assertStringStartsWith('%PDF', $pdf, $id . ': it prints');
+        }
     }
 
     public function testABadValueIsAnError(): void

@@ -183,11 +183,17 @@ final class LabelDrawing
                 [$best, $module] = [$candidate, $snapped];
             }
         }
+        $warnings = [];
         if ($module <= 0.0) {
-            $q = $best->quietModules();
+            $q   = $best->quietModules();
             $min = $resolution->minimumMm(Resolution::MATRIX_MIN_DOTS, Resolution::MATRIX_MIN_MM);
-
-            return [new Problem(Problem::TOO_SMALL, $number, ['needMm' => round(max($best->width(), $best->height()) * $min + 2 * $q * $min, 1), 'dpi' => $resolution->dpi])];
+            // D-1443: under the recommended size it is drawn anyway, at the whole dots that fit — a warning, not a refusal.
+            $module = $resolution->module(min($e->widthMm / ($best->width() + 2 * $q), $e->heightMm / ($best->height() + 2 * $q)), 1, 0.0);
+            $tooSmall = ['needMm' => round(max($best->width(), $best->height()) * $min + 2 * $q * $min, 1), 'dpi' => $resolution->dpi];
+            if ($module <= 0.0) {
+                return [new Problem(Problem::TOO_SMALL, $number, $tooSmall)];
+            }
+            $warnings[] = Problem::warning(Problem::TOO_SMALL, $number, $tooSmall);
         }
 
         $left       = $resolution->snap($e->xMm + $best->quietModules() * $module);
@@ -209,7 +215,7 @@ final class LabelDrawing
         }
         $canvas->rectangles($rectangles);
 
-        return [];
+        return $warnings;
     }
 
     /** @return list<Problem> */
@@ -218,13 +224,20 @@ final class LabelDrawing
         $widths = $code->widths();
         $total  = array_sum($widths) + 2 * $code->quietModules();
         $module = $resolution->module($e->widthMm / $total, Resolution::BAR_MIN_DOTS, Resolution::BAR_MIN_MM);
+        $warnings = [];
         if ($module <= 0.0) {
-            return [new Problem(Problem::TOO_SMALL, $number, ['needMm' => round($total * $resolution->minimumMm(Resolution::BAR_MIN_DOTS, Resolution::BAR_MIN_MM), 1), 'dpi' => $resolution->dpi])];
+            // D-1443: as for the matrix codes — drawn at the whole dots that fit, with a warning.
+            $tooSmall = ['needMm' => round($total * $resolution->minimumMm(Resolution::BAR_MIN_DOTS, Resolution::BAR_MIN_MM), 1), 'dpi' => $resolution->dpi];
+            $module   = $resolution->module($e->widthMm / $total, 1, 0.0);
+            if ($module <= 0.0) {
+                return [new Problem(Problem::TOO_SMALL, $number, $tooSmall)];
+            }
+            $warnings[] = Problem::warning(Problem::TOO_SMALL, $number, $tooSmall);
         }
 
         $textMm   = $e->human ? max(3.0, min($e->heightMm * 0.3, 4.0)) : 0.0;
         $barsMm   = $e->heightMm - $textMm;
-        $problems = $barsMm < self::MIN_BAR_HEIGHT_MM ? [Problem::warning(Problem::TOO_FLAT, $number, ['minMm' => self::MIN_BAR_HEIGHT_MM])] : [];
+        $problems = [...$warnings, ...($barsMm < self::MIN_BAR_HEIGHT_MM ? [Problem::warning(Problem::TOO_FLAT, $number, ['minMm' => self::MIN_BAR_HEIGHT_MM])] : [])];
         $left     = $resolution->snap($e->xMm + ($e->widthMm - ($total * $module)) / 2 + $code->quietModules() * $module);
 
         $rectangles = [];

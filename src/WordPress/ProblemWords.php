@@ -24,7 +24,10 @@ final class ProblemWords
             Problem::NEEDS_BOX    => __('Braucht Lage und Größe (x, y ≥ 0; Breite, Höhe > 0).', 'taxmod-label'),
             Problem::OUTSIDE      => sprintf(/* translators: 1: width, 2: height in mm */ __('Ragt über das Etikett (%1$s × %2$s mm).', 'taxmod-label'), (string) ($d['w'] ?? ''), (string) ($d['h'] ?? '')),
             Problem::GREW_OUTSIDE => __('Der Text wächst über das Etikett hinaus.', 'taxmod-label'),
-            Problem::TOO_SMALL    => sprintf(/* translators: 1: mm, 2: dpi */ __('Zu klein zum Scannen: braucht mindestens %1$s mm bei %2$s dpi.', 'taxmod-label'), (string) ($d['needMm'] ?? ''), (string) ($d['dpi'] ?? '')),
+            // D-1443: a warning when it is still drawn, a refusal only where not even one dot per module fits.
+            Problem::TOO_SMALL    => $problem->error
+                ? sprintf(/* translators: 1: mm, 2: dpi */ __('Zu klein zum Scannen: braucht mindestens %1$s mm bei %2$s dpi.', 'taxmod-label'), (string) ($d['needMm'] ?? ''), (string) ($d['dpi'] ?? ''))
+                : sprintf(/* translators: 1: mm, 2: dpi */ __('Kleiner als empfohlen (%1$s mm bei %2$s dpi), Lesbarkeit prüfen.', 'taxmod-label'), (string) ($d['needMm'] ?? ''), (string) ($d['dpi'] ?? '')),
             Problem::TOO_FLAT     => sprintf(/* translators: %s: mm */ __('Die Balken sind niedriger als %s mm; ein Handscanner trifft sie schlecht.', 'taxmod-label'), (string) ($d['minMm'] ?? '')),
             Problem::BAD_VALUE    => sprintf(/* translators: 1: value, 2: what the code takes */ __('«%1$s» passt nicht in diesen Code: %2$s', 'taxmod-label'), (string) ($d['value'] ?? ''), self::codeRule((string) ($d['type'] ?? ''))),
             Problem::NO_PICTURE   => sprintf(/* translators: %s: media id */ __('Bild %s fehlt in der Mediathek oder ist kein JPEG/PNG.', 'taxmod-label'), (string) ($d['media'] ?? '')),
