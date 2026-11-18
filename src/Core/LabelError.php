@@ -44,6 +44,12 @@ final class LabelError extends \RuntimeException
         return new self('not_a_roll', $which);
     }
 
+    /** D-1441: the printer lists its media; this one is not among them. */
+    public static function notAMediumOf(string $printer): self
+    {
+        return new self('not_a_medium', $printer);
+    }
+
     public static function notAPrinter(string $which): self
     {
         return new self('not_a_printer', $which);

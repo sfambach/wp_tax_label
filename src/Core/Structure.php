@@ -31,6 +31,8 @@ final class Structure
         // Assumed (docs/konzept.md §10, open question): the printer's resolution; without it 203 dpi.
         'printer_dpi',
         'roll_width', 'roll_labels',
+        // D-1441: the media a printer can take, and the kind of a medium (roll, A4 sheet, A4 label sheet).
+        'printer_media', 'medium_kind',
     ];
 
     /**

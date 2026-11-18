@@ -57,6 +57,7 @@ final class ProblemWords
             'without_name'   => __('Ein Etikett braucht einen Namen.', 'taxmod-label'),
             'in_use'         => sprintf(/* translators: %s: names */ __('Wird noch benutzt von: %s.', 'taxmod-label'), $error->detail),
             'not_a_roll'     => sprintf(/* translators: %s: id */ __('Keine Rolle: %s.', 'taxmod-label'), $error->detail),
+            'not_a_medium'   => sprintf(/* translators: %s: printer */ __('%s kann dieses Druckmedium nicht; es steht nicht in seinen «Druckmedien».', 'taxmod-label'), $error->detail),
             'not_a_printer'  => sprintf(/* translators: %s: id */ __('Kein Drucker: %s.', 'taxmod-label'), $error->detail),
             default          => $error->getMessage(),
         };

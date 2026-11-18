@@ -7,6 +7,7 @@ use TaxmodLabel\Core\Drawing\Picture;
 use TaxmodLabel\Core\LabelCatalog;
 use TaxmodLabel\Core\LabelChanges;
 use TaxmodLabel\Core\LabelError;
+use TaxmodLabel\Core\PrinterMedia;
 use TaxmodLabel\Core\Structure;
 use TaxmodLabel\Core\Table;
 
@@ -192,6 +193,30 @@ final class LabelService
         return $this->users = $out;
     }
 
+    /** D-1441: the media of every printer; null while the model has no «Druckmedien» yet. */
+    public function media(): ?PrinterMedia
+    {
+        $s = $this->structure();
+
+        return $s->hasNode('label_printer') && $s->hasField('printer_media') ? PrinterMedia::from($this->table('label_printer'), $s->field('printer_media')) : null;
+    }
+
+    /**
+     * D-1441: the kind of every medium in the modeller's own words (D-1291); empty while the model has no «Art».
+     *
+     * @return array<int, string> medium id ⇒ kind
+     */
+    public function mediumKinds(): array
+    {
+        $s     = $this->structure();
+        $rolls = array_keys($this->names('label_roll'));
+        if ($rolls === [] || ! $s->hasField('medium_kind')) {
+            return [];
+        }
+
+        return $this->door->fieldWords($rolls, [$s->field('medium_kind')])[$s->field('medium_kind')] ?? [];
+    }
+
     /** D-1192: the printer now holds that roll; one write, undone by changing back. */
     public function changeRoll(int $printer, int $roll): void
     {
@@ -201,6 +226,10 @@ final class LabelService
         }
         if (! isset($this->names('label_roll')[$roll])) {
             throw LabelError::notARoll('#' . $roll);
+        }
+        $media = $this->media();
+        if ($media !== null && ! $media->allows($printer, $roll)) {
+            throw LabelError::notAMediumOf($this->names('label_printer')[$printer] ?? '#' . $printer);
         }
         $this->door->write([['op' => 'set_values', 'record' => (string) $printer, 'values' => [(string) $s->field('printer_loaded_roll') => (string) $roll]]]);
         $this->forget();

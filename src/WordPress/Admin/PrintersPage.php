@@ -6,6 +6,7 @@ use Taxmod\WordPress\Admin\ListPage;
 use Taxmod\WordPress\Plugin as Modeller;
 use TaxmodLabel\Core\LabelContent;
 use TaxmodLabel\Core\LabelFormat;
+use TaxmodLabel\Core\PrinterMedia;
 use TaxmodLabel\WordPress\LabelButton;
 use TaxmodLabel\WordPress\LabelRender;
 use TaxmodLabel\WordPress\LabelService;
@@ -161,15 +162,33 @@ final class PrintersPage
 
             return $this->details($chosen, $printers, $rolls, $catalog->printerList(), $allowed, $service);
         }
+        $kinds    = $service->mediumKinds();
+        $printers = $service->names('label_printer');
+        $media    = $service->media();
         $rollBody = '';
         foreach ($rolls as $id => $name) {
             $rollBody .= '<tr><th scope="row" class="check-column"></th><td><a href="' . esc_url(self::mediaUrl(['satz' => $id])) . '"><strong>' . esc_html($name) . '</strong></a></td>'
+                . '<td>' . esc_html($kinds[$id] ?? '—') . '</td><td>' . esc_html(self::printerNames($media, $id, $printers)) . '</td>'
                 . '<td style="text-align:right"><a class="button" href="' . esc_url(self::mediaUrl(['satz' => $id])) . '">' . esc_html__('Öffnen', 'taxmod-label') . '</a></td></tr>';
         }
 
-        return '<h2>' . esc_html__('Rollen', 'taxmod-label') . '</h2>'
-            . '<p class="description">' . esc_html__('Eine Rolle nennt ihre Breite und die Etiketten, die auf ihr gedruckt werden dürfen.', 'taxmod-label') . '</p>'
-            . ListPage::table([[__('Rolle', 'taxmod-label'), '']], $rollBody === '' ? self::none(1) : $rollBody);
+        return '<h2>' . esc_html__('Druckmedium', 'taxmod-label') . '</h2>'
+            . '<p class="description">' . esc_html__('Ein Druckmedium nennt seine Art, seine Breite und die Etiketten, die darauf gedruckt werden dürfen. Welcher Drucker es kann, steht am Drucker unter «Druckmedien».', 'taxmod-label') . '</p>'
+            . ListPage::table([[__('Druckmedium', 'taxmod-label'), ''], [__('Art', 'taxmod-label'), '12em'], [__('Drucker', 'taxmod-label'), '']], $rollBody === '' ? self::none(3) : $rollBody);
+    }
+
+    /**
+     * D-1441: the printers that can take this medium, derived from their «Druckmedien».
+     *
+     * @param array<int, string> $printers
+     */
+    private static function printerNames(?PrinterMedia $media, int $medium, array $printers): string
+    {
+        if ($media === null) {
+            return '—';
+        }
+
+        return implode(', ', array_map(static fn (int $p): string => $printers[$p] ?? '#' . $p, $media->printersFor($medium))) ?: '—';
     }
 
     private static function none(int $columns): string
@@ -194,7 +213,9 @@ final class PrintersPage
         $name   = $isRoll ? $rolls[$record] : $printers[$record];
         if ($isRoll) {
             $holders = array_filter($active, static fn (array $p): bool => ($p['roll_name'] ?? '') === $name);
-            $facts   = '<tr><th scope="row" style="width:14em">' . esc_html__('Eingelegt in', 'taxmod-label') . '</th><td>'
+            $facts   = '<tr><th scope="row" style="width:14em">' . esc_html__('Art', 'taxmod-label') . '</th><td>' . esc_html($service->mediumKinds()[$record] ?? '—') . '</td></tr>'
+                . '<tr><th scope="row">' . esc_html__('Drucker, die es können', 'taxmod-label') . '</th><td>' . esc_html(self::printerNames($service->media(), $record, $printers)) . '</td></tr>'
+                . '<tr><th scope="row">' . esc_html__('Eingelegt in', 'taxmod-label') . '</th><td>'
                 . esc_html(implode(', ', array_map(static fn (array $p): string => (string) $p['name'], $holders)) ?: '—') . '</td></tr>';
             $actions = '';
         } else {
@@ -220,6 +241,14 @@ final class PrintersPage
             return '';
         }
         $current = (int) $service->table('label_printer')->first($printer, $s->field('printer_loaded_roll'));
+        $media   = $service->media();
+        if ($media !== null) {
+            // D-1441: only what this printer can take.
+            $rolls = array_intersect_key($rolls, array_flip($media->of($printer)));
+            if ($rolls === []) {
+                return '<span class="description">' . esc_html__('Keine Druckmedien eingetragen', 'taxmod-label') . '</span>';
+            }
+        }
         $options = '';
         foreach ($rolls as $id => $roll) {
             $options .= '<option value="' . esc_attr((string) $id) . '"' . selected($id, $current, false) . '>' . esc_html($roll) . '</option>';
