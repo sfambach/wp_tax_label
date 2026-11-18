@@ -79,6 +79,27 @@ final class DrawingTest extends TestCase
         self::assertSame(Problem::NO_PICTURE, $missing[0]->code);
     }
 
+    public function testCopiesShareOneDrawingAndOnePicture(): void
+    {
+        // Review L1: 50 copies were 50 drawings and 50 embedded pictures.
+        $picture = Picture::fromBytes((string) base64_decode(self::PNG));
+        $layout  = LabelLayout::fromJson('[{"type":"qr","field":"code","x":1,"y":1,"w":14},{"type":"text","field":"title","x":16,"y":2,"w":20,"h":5,"pt":10},{"type":"image","media":"media:5","x":40,"y":2,"w":10,"h":10}]');
+        $format  = new LabelFormat('x', 62, 20, 62);
+        $one     = LabelDocument::renderLayout($format, $layout, [['code' => 'O-1', 'title' => 'Box']], null, [5 => $picture]);
+        $fifty   = LabelDocument::renderLayout($format, $layout, array_fill(0, 50, ['code' => 'O-1', 'title' => 'Box']), null, [5 => $picture]);
+
+        self::assertSame(50, substr_count($fifty, '/Type /Page '), 'still one page per copy');
+        self::assertSame(1, substr_count($fifty, '/Subtype /Image'));
+        self::assertSame(1, substr_count($fifty, '(Box) Tj'));
+        self::assertLessThan(strlen($one) + 50 * 400, strlen($fifty), "each further copy costs a page object, not a drawing");
+
+        $mixed = LabelDocument::renderLayout($format, $layout, [['code' => 'O-1', 'title' => 'A'], ['code' => 'O-2', 'title' => 'B'], ['code' => 'O-1', 'title' => 'A']], null, [5 => $picture]);
+        self::assertSame(3, substr_count($mixed, '/Type /Page '));
+        self::assertSame(1, substr_count($mixed, '(A) Tj'), 'a repeated label is drawn once, wherever it stands');
+        self::assertSame(1, substr_count($mixed, '(B) Tj'));
+        self::assertSame(1, substr_count($mixed, '/Subtype /Image'), 'one picture for different labels too');
+    }
+
     public function testTheFixedFormatsStillPrint(): void
     {
         foreach (LabelFormat::shipped() as $format) {

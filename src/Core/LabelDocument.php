@@ -57,8 +57,15 @@ final class LabelDocument
 
         $pdf    = new PdfDocument();
         $canvas = new PdfCanvas($pdf);
+        // Copies of one label are drawn once; every further copy is a page that shows the same drawing (review L1).
+        $drawn = [];
         foreach ($records as $values) {
-            $pdf->addPage($format->widthMm, $format->heightMm, $format->turnedOnRoll());
+            $key = serialize($values);
+            if (isset($drawn[$key])) {
+                $pdf->repeatPage($drawn[$key]);
+                continue;
+            }
+            $drawn[$key] = $pdf->addPage($format->widthMm, $format->heightMm, $format->turnedOnRoll());
             // D-1190: a printer that starts its lines part-way along the head gets the drawing moved back by that much, the part
             // that falls off the left drawn again at the right end of its line — on paper it lands where the layout says.
             // The shift is rounded to whole dots, so the codes stay on the printer's dot grid (Resolution::insetMm).

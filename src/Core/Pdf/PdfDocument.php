@@ -23,10 +23,15 @@ final class PdfDocument
     /** @var list<array{filter: string, space: string, bits: int, data: string, width: int, height: int}> */
     private array $images = [];
 
+    /** @var array<string, int> picture key ⇒ its number in {@see self::$images} */
+    private array $imageNumbers = [];
+
     /**
      * A page drawn as width × height; turned, the sheet is height × width and the drawing is laid on it a quarter turn.
+     *
+     * @return int the page's index, for {@see self::repeatPage()}
      */
-    public function addPage(float $widthMm, float $heightMm, bool $turned = false): void
+    public function addPage(float $widthMm, float $heightMm, bool $turned = false): int
     {
         $width = $widthMm * self::POINTS_PER_MM;
         $height = $heightMm * self::POINTS_PER_MM;
@@ -36,6 +41,17 @@ final class PdfDocument
             'turned' => $turned,
             'content' => $turned ? sprintf("0 1 -1 0 %s 0 cm\n", self::number($height)) : '',
         ];
+
+        return count($this->pages) - 1;
+    }
+
+    /** One more page showing the drawing of page $index; the PDF holds that drawing once (review L1). */
+    public function repeatPage(int $index): void
+    {
+        if (! isset($this->pages[$index])) {
+            throw new \OutOfRangeException(sprintf('There is no page %d to repeat.', $index));
+        }
+        $this->pages[] = $this->pages[$index];
     }
 
     /** D-1190: what follows is drawn moved sideways by $dxMm until {@see self::endShift()}. */
@@ -96,14 +112,19 @@ final class PdfDocument
     public function image(float $xMm, float $yMm, float $widthMm, float $heightMm, array $image, int $widthPx, int $heightPx): void
     {
         $page = $this->currentHeight();
-        $this->images[] = $image + ['width' => $widthPx, 'height' => $heightPx];
+        // The same picture is embedded once, however often it is drawn (review L1).
+        $key = sha1(serialize([$image['filter'], $image['space'], $image['bits'], $widthPx, $heightPx, $image['data']]));
+        if (! isset($this->imageNumbers[$key])) {
+            $this->images[] = $image + ['width' => $widthPx, 'height' => $heightPx];
+            $this->imageNumbers[$key] = count($this->images);
+        }
         $this->append(sprintf(
             "q %s 0 0 %s %s %s cm /Im%d Do Q\n",
             self::number($widthMm * self::POINTS_PER_MM),
             self::number($heightMm * self::POINTS_PER_MM),
             self::number($xMm * self::POINTS_PER_MM),
             self::number($page - ($yMm + $heightMm) * self::POINTS_PER_MM),
-            count($this->images),
+            $this->imageNumbers[$key],
         ));
     }
 
@@ -161,10 +182,13 @@ final class PdfDocument
             $xObjects .= sprintf(' /Im%d %d 0 R', $i + 1, $next++);
         }
         $resources = '/Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >>' . ($xObjects === '' ? '' : ' /XObject <<' . $xObjects . ' >>');
+        $contents = [];
         foreach ($this->pages as $page) {
             $pageId = $next++;
-            $contentId = $next++;
             $kids[] = $pageId . ' 0 R';
+            // Pages that show the same drawing share one content stream.
+            $known = isset($contents[$page['content']]);
+            $contentId = $contents[$page['content']] ??= $next++;
             $objects[$pageId] = sprintf(
                 '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 %s %s] /Resources << %s >> /Contents %d 0 R >>',
                 self::number($page['turned'] ? $page['height'] : $page['width']),
@@ -172,7 +196,9 @@ final class PdfDocument
                 $resources,
                 $contentId,
             );
-            $objects[$contentId] = sprintf("<< /Length %d >>\nstream\n%sendstream", strlen($page['content']), $page['content']);
+            if (! $known) {
+                $objects[$contentId] = sprintf("<< /Length %d >>\nstream\n%sendstream", strlen($page['content']), $page['content']);
+            }
         }
         $objects[2] = sprintf('<< /Type /Pages /Kids [%s] /Count %d >>', implode(' ', $kids), count($kids));
         ksort($objects);
