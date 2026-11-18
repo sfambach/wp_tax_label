@@ -229,7 +229,8 @@ final class PrintersPage
 
         return '<p><a href="' . esc_url($here()) . '">' . esc_html($isRoll ? __('← Druckmedium', 'taxmod-label') : __('← Drucker', 'taxmod-label')) . '</a></p>'
             . '<h2>' . esc_html($name) . '</h2>'
-            . '<div style="text-align:right;margin-bottom:12px">' . $actions . '</div>'
+            // D-1308: the page's buttons stand in the one toolbar, top left — not on a line of their own on the right (Stefan, 2026-11-18).
+            . ListPage::toolbar([$actions])
             . ListPage::beside($form, '<table class="widefat striped">' . $facts . '</table>');
     }
 
