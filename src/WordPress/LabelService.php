@@ -30,6 +30,25 @@ final class LabelService
     /** Filter: `(array<int, list<string>> $users): array<int, list<string>>` — label id ⇒ what prints with it elsewhere (a stock place type), by name; asked once (CD-7). */
     public const USERS_FILTER = 'taxmod_label_users';
 
+    /**
+     * `apply_filters(CATALOG_FILTER, null)`: the labels with their printers, for a module that offers them (D-1296: the stock
+     * asks here instead of keeping its own copy). Null while the model has no labels node.
+     */
+    public const CATALOG_FILTER = 'taxmod_label_catalog';
+
+    /** The answer to {@see CATALOG_FILTER}: an earlier answer stands; a model without labels leaves it as it was. */
+    public static function answerCatalog(mixed $catalog): mixed
+    {
+        if ($catalog instanceof LabelCatalog) {
+            return $catalog;
+        }
+        try {
+            return (new self())->catalog();
+        } catch (LabelError) {
+            return $catalog;
+        }
+    }
+
     private ?Structure $structure = null;
 
     private ?LabelCatalog $catalog = null;
