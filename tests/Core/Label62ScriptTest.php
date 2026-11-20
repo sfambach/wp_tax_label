@@ -16,7 +16,7 @@ final class Label62ScriptTest extends TestCase
     {
         $script = self::script();
 
-        foreach (['var TAPE_MM = 62;', 'var PRINT_MM = 58;', 'var PAGE_MM = 100;', 'var FREE_MM = PAGE_MM - 9;', 'var DPI = 300;', 'crop(canvas, Math.round(DPI / 25.4 * 12))', 'section{padding:4.5mm 2mm}'] as $line) {
+        foreach (['var TAPE_MM = 62;', 'var PRINT_MM = 58;', 'var PAGE_MM = 100;', 'var FREE_MM = PAGE_MM - 9;', 'var DPI = 300;', 'crop(canvas, Math.round(DPI / 25.4 * 12), cutMarks)', 'section{padding:4.5mm 2mm}'] as $line) {
             self::assertStringContainsString($line, $script);
         }
     }
@@ -48,6 +48,15 @@ final class Label62ScriptTest extends TestCase
         // Stefan 20.11. «er druckt nicht»: Versand reloaded the page before the print started.
         self::assertStringContainsString('return print(pages, caption).then(', $script);
         self::assertMatchesRegularExpression('/view\.print\(\);\s*done\(\);/', $script);
+    }
+
+    public function testCutMarksAreLeftOutOnlyWhenAsked(): void
+    {
+        $script = self::script();
+
+        // Stefan 20.11. «Etwas klein»: the Post stamp's corner crosses kept it small; eBay's DHL label does not ask.
+        self::assertStringContainsString('if (cutMarks) {', $script);
+        self::assertStringContainsString("hasAttribute('data-taxmod-label62-cut-marks')", $script);
     }
 
     public function testPdfJsShipsWithItsFixedVersion(): void
