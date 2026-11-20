@@ -33,6 +33,8 @@ final class Structure
         'roll_width', 'roll_labels',
         // D-1441: the media a printer can take, and the kind of a medium (roll, A4 sheet, A4 label sheet).
         'printer_media', 'medium_kind',
+        // D-1333: the printer's pause is a unit value — its part's amount is the seconds. Without these keys the pause was dropped.
+        'printer_pause', 'money_amount',
     ];
 
     /**
