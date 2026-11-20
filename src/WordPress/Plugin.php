@@ -66,6 +66,7 @@ final class Plugin
         LabelRender::boot();
         // D-1507: the 62 mm postage print, attached by other modules through its handle.
         Label62Script::boot();
+        PostageStore::boot();
         add_action('wp_abilities_api_init', static fn () => (new LabelAbilities())->register());
         add_action('rest_api_init', static fn () => (new EditorRoutes())->register());
         add_filter('taxmod_logistics_pages', self::pages(...));

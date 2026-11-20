@@ -14,6 +14,12 @@ final class LabelError extends \RuntimeException
         parent::__construct($reason . ($detail === '' ? '' : ': ' . $detail));
     }
 
+    /** D-1513: what the postage store refuses — not a PDF, too large, or a key it does not take. */
+    public static function notPostage(string $why): self
+    {
+        return new self('not_postage', $why);
+    }
+
     public static function notConfigured(string $key): self
     {
         return new self('not_configured', $key);

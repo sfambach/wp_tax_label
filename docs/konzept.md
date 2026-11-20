@@ -231,6 +231,9 @@ Die Maße 62 mm Band, 58 mm Druckbreite, 100 mm Seite, 300 dpi und 12 mm Lücke 
 
 **Ein Baustein zum Wählen und Lesen (D-1511).** Gleiche Funktion, gleicher Baustein: Wählen und Lesen eines Porto-PDF gibt es nur hier. Im Browser liefert `taxmodLabel62.pick()` die gewählte Datei und `taxmodLabel62.lines(datei)` den gedruckten Text als Zeilen von oben nach unten. Auf dem Server liest `PostageText` (vorher `LabelText` im eBay-Modul) die Zeilen, für andere Module über den Filter `taxmod_label_pdf_text`. Was die Zeilen bedeuten (Empfänger, Preis, Sendungsnummer), entscheidet das Modul, das sie braucht. Kein anderes Modul öffnet ein PDF selbst; das prüft der Wächter `standard-blocks-check` (Regel 3).
 
+**Porto-PDF wird gespeichert (D-1513).** Stefan 20.11. 16:23: «Kannst du es dann nicht einfach speichern?» Es gibt einen Speicher für Porto-PDFs, hier im Etikettenmodul (`PostageStore`). Er versiegelt jedes PDF mit dem Tresor der Seite und legt es in `wp-content/taxmod-postage/` ab, das fürs Web gesperrt ist. Andere Module erreichen ihn nur über Filter und Aktionen und einen eigenen Schlüssel: `taxmod_postage_put` (Schlüssel, PDF → true oder Grund), `taxmod_postage_get`, `taxmod_postage_keys`, `taxmod_postage_printed`, `taxmod_postage_delete`. Er nimmt nur PDFs bis 2 MB. Die Marke trägt die Anschrift des Empfängers, deshalb geht ein PDF 14 Tage nach dem ersten Druck (täglich per WP-Cron). Ein ungedrucktes bleibt, bis es gedruckt oder gelöscht wird. Gespeichert wird nur auf Klick. Das ersetzt den Satz aus D-1507, dass das PDF nicht hochgeladen wird.
+
+
 ```mermaid
 flowchart LR
   P["pick() · Datei"] --> L["lines() · Browser"]
