@@ -11,5 +11,6 @@ Labels for the Taxonomy Modeller: the label editor (drawing beside the JSON), th
 ```sh
 composer install
 vendor/bin/phpunit                          # core, no WordPress
+php scripts/dev/label-button-check.php       # D-1494: the list dialog carries no document; needs a local WordPress (WP_ROOT)
 python3 -I scripts/dev/scan-check.py         # draws every code for 203/300 dpi and decodes it (pip: zxing-cpp pillow; pdftoppm)
 ```
