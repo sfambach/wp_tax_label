@@ -54,6 +54,7 @@ final class Label62Script
             'service' => current_user_can(Modeller::CAPABILITY) ? [
                 'url'         => admin_url('admin-ajax.php'),
                 'action'      => PostagePrint::ACTION,
+                'dialog'      => PostagePrint::DIALOG_ACTION,
                 'nonceField'  => PostagePrint::NONCE,
                 'nonce'       => wp_create_nonce(PostagePrint::ACTION),
                 'status'      => LabelButton::STATUS_ACTION,

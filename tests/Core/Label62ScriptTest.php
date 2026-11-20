@@ -43,6 +43,10 @@ final class Label62ScriptTest extends TestCase
         // Prüftor D-1517 (3): the browser's dialog is the fallback — no default printer, a refusal, a failed job.
         self::assertStringContainsString("return state === 'sent' ? true : print(pages, caption).then(", $script);
         self::assertStringContainsString("Promise.resolve('browser')", $script);
+        // Stefan 20.11. 18:28: never sent without the dialog; a cancelled dialog prints nothing.
+        self::assertStringContainsString('? confirmed(pages, caption) : ', $script);
+        self::assertSame(1, substr_count($script, 'toService(pages, caption, printer).then(done)'), 'Only «Drucken» in the dialog sends.');
+        self::assertStringContainsString("if (state === 'cancelled') {\n\t\t\t\t\treturn false;", $script);
     }
 
     public function testOneBuildingBlockChoosesAndReadsThePdf(): void

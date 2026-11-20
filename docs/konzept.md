@@ -242,12 +242,12 @@ flowchart LR
   S --> Y["eBay: Etikett zur Sendung"]
 ```
 
-**Porto über den Druckdienst (D-1517).** Stefan 20.11. 17:04: «jetzt mal aufs moderne Drucken umstellen … nur ein Bild in das Etikett». `taxmodLabel62.run` schneidet das Porto-PDF im Browser zu wie bisher. Hat der Arbeitsplatz der Person einen Standarddrucker (D-1502), geht das zugeschnittene Bild als PNG an den einen Endpunkt `PostagePrint`. Der prüft Recht, Nonce und Bild (nur PNG, höchstens 5 MB, plausible Größe). `PostageLabel` legt das Bild auf ein 100-mm-Etikett quer über die Rolle, so groß wie der Browser-Druck es hatte, und `ModelDoor::queuePrint` gibt es als Auftrag an diesen Drucker. Ohne Standarddrucker, bei Ablehnung oder bei einem fehlgeschlagenen Auftrag druckt der Browser wie bisher, mit Hinweis. Versand und eBay ändern nichts: sie rufen nur `taxmodLabel62.run`. Gedruckt wird nur auf Klick. Fertige Aufträge entfernt die Aufbewahrung der Druckaufträge im Modeller (D-1307); ein Nachdruck kommt aus dem Porto-Speicher (D-1513).
+**Porto über den Druckdienst (D-1517).** Stefan 20.11. 17:04: «jetzt mal aufs moderne Drucken umstellen … nur ein Bild in das Etikett». `taxmodLabel62.run` schneidet das Porto-PDF im Browser zu wie bisher. Hat der Arbeitsplatz der Person einen Standarddrucker (D-1502), geht das zugeschnittene Bild als PNG an den einen Endpunkt `PostagePrint`. Der prüft Recht, Nonce und Bild (nur PNG, höchstens 5 MB, plausible Größe). `PostageLabel` legt das Bild auf ein 100-mm-Etikett quer über die Rolle, so groß wie der Browser-Druck es hatte, und `ModelDoor::queuePrint` gibt es als Auftrag an diesen Drucker. Ohne Standarddrucker, bei Ablehnung oder bei einem fehlgeschlagenen Auftrag druckt der Browser wie bisher, mit Hinweis. Versand und eBay ändern nichts: sie rufen nur `taxmodLabel62.run`. Stefan 20.11. 18:28: «eigentlich müsste ja der Druckdialog kommen … der Drucker … mit der Voransicht». Vor dem Senden fragt deshalb immer der Druckdialog des Moduls (`PostagePrint::dialog`, Standard-Dialog mit Titelleiste): Drucker zur Wahl (die des Arbeitsplatzes, sein Standarddrucker vorgewählt; ohne Arbeitsplatz alle), Vorschau des zugeschnittenen Etiketts, «Drucken» und «Abbrechen»; «Ohne Drucker» druckt im Browser wie bisher. Der Server nimmt nur einen Drucker, den der Dialog anbietet. Abbrechen druckt nichts; `run` antwortet dann `false`. Gedruckt wird nur auf Klick. Fertige Aufträge entfernt die Aufbewahrung der Druckaufträge im Modeller (D-1307); ein Nachdruck kommt aus dem Porto-Speicher (D-1513).
 
 ```mermaid
 flowchart LR
   K["Klick"] --> R["run(): PDF → Bild"]
-  R -->|Standarddrucker| E["PostagePrint: Recht → Nonce → PNG"] --> Q["queuePrint · Druckdienst"]
+  R -->|Drucker da| D["Druckdialog: Drucker, Vorschau"] -->|Drucken| E["PostagePrint: Recht → Nonce → PNG → Drucker"] --> Q["queuePrint · Druckdienst"]
   R -->|keiner / Fehler| B["Browser-Druck"]
 ```
 

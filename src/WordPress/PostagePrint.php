@@ -31,30 +31,47 @@ final class PostagePrint
 
     public const NONCE = '_taxmod_postage_nonce';
 
+    public const DIALOG_ACTION = 'taxmod_label_postage_dialog';
+
     private const TITLE_MAX = 64;
 
     /** Only where admin-ajax.php answers (D-1187). */
     public static function wire(): void
     {
         add_action('wp_ajax_' . self::ACTION, self::handle(...));
+        add_action('wp_ajax_' . self::DIALOG_ACTION, self::dialog(...));
+    }
+
+    /**
+     * Stefan 20.11. 18:28 «eigentlich müsste ja der Druckdialog kommen … der Drucker … mit der Voransicht»: the module's print
+     * dialog for a postage label (LabelButton::postageDialog). Nothing is printed until «Drucken» is pressed.
+     */
+    public static function dialog(): void
+    {
+        self::allowed();
+        $printers = self::printers();
+        if ($printers === []) {
+            wp_send_json_error(['message' => ProblemWords::ofError(LabelError::noWorkplacePrinter()), 'browser' => true], 409);
+        }
+
+        // Prüftor 20.11.: the one print dialog of this module (D-1511 rule 3); the postage picture is one more source of its preview.
+        wp_send_json_success(['html' => LabelButton::postageDialog($printers)]);
     }
 
     public static function handle(): void
     {
-        if (! current_user_can(Modeller::CAPABILITY)) {
-            wp_send_json_error(['message' => __('You cannot print labels.', 'taxmod-label')], 403);
-        }
-        check_ajax_referer(self::ACTION, self::NONCE);
+        self::allowed();
 
         $file = $_FILES['png'] ?? null;
         if (! is_array($file) || ! is_string($file['tmp_name'] ?? null) || ! is_uploaded_file($file['tmp_name']) || (int) ($file['size'] ?? 0) > PostageLabel::MAX_BYTES) {
             wp_send_json_error(['message' => ProblemWords::ofError(LabelError::notAPostagePicture('no PNG'))], 400);
         }
         $caption = mb_substr(sanitize_text_field(wp_unslash((string) ($_POST['caption'] ?? ''))), 0, self::TITLE_MAX);
+        $wanted  = absint(wp_unslash($_POST['printer'] ?? 0));
 
         try {
             $picture = PostageLabel::picture((string) file_get_contents($file['tmp_name']));
-            $printer = self::defaultPrinter();
+            $printer = self::printer($wanted);
             ['pdf' => $pdf, 'format' => $format] = PostageLabel::pdf($picture, $printer);
             $delivery = ['roll' => $format->rollMm, 'queue' => $printer->queue, 'options' => $printer->optionsFor($format), 'retry' => $printer->retries ? 1 : 0, 'pause' => $printer->pauseSeconds];
             $job = (new ModelDoor())->queuePrint($pdf, PostageLabel::FORMAT_KEY, '', $caption !== '' ? $caption : __('Porto', 'taxmod-label'), 1, $delivery);
@@ -65,20 +82,43 @@ final class PostagePrint
         wp_send_json_success(['job' => $job, 'message' => sprintf(/* translators: 1: job number, 2: printer */ __('Druckauftrag %1$d an %2$s gesendet.', 'taxmod-label'), $job, $printer->name !== '' ? $printer->name : $printer->queue)]);
     }
 
-    /** @throws LabelError */
-    private static function defaultPrinter(): LabelPrinter
+    private static function allowed(): void
     {
-        $service = new LabelService();
-        try {
-            $place   = $service->workplace();
-            $printer = $place === null ? null : ($service->catalog()->printerList()[$place->defaultPrinter] ?? null);
-        } catch (DomainError) {
-            $printer = null;
+        if (! current_user_can(Modeller::CAPABILITY)) {
+            wp_send_json_error(['message' => __('Du darfst keine Etiketten drucken.', 'taxmod-label')], 403);
         }
-        if ($printer === null) {
+        check_ajax_referer(self::ACTION, self::NONCE);
+    }
+
+    /**
+     * The printers the dialog offers — the workplace's, its default printer first; without a workplace all (D-1502).
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private static function printers(): array
+    {
+        try {
+            return (new LabelService())->dialogCatalog()->printerList();
+        } catch (DomainError) {
+            return [];
+        }
+    }
+
+    /**
+     * The printer chosen in the dialog, if the dialog offers it.
+     *
+     * @throws LabelError
+     */
+    private static function printer(int $wanted): LabelPrinter
+    {
+        $printers = self::printers();
+        if ($printers === []) {
             throw LabelError::noWorkplacePrinter();
         }
+        if (! isset($printers[$wanted])) {
+            throw LabelError::notAPrinter((string) $wanted);
+        }
 
-        return LabelPrinter::fromArray($printer);
+        return LabelPrinter::fromArray($printers[$wanted]);
     }
 }

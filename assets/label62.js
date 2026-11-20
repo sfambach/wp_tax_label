@@ -6,8 +6,9 @@
  * Other modules use it through the handle taxmod-label62: taxmodLabel62.run(blob, caption) → Promise<boolean>, or a button with
  * data-taxmod-label62-pick="caption" that asks for the PDF file. D-1511: the same building block chooses and reads the PDF for everyone —
  * taxmodLabel62.pick() → Promise<File|null> and taxmodLabel62.lines(blob) → Promise<list<string>>, the printed text top to bottom.
- * D-1517: where the person's workplace has a default printer, the cropped label goes to the print service as a picture instead
- * of the browser's dialog; the PDF itself still never leaves the browser here.
+ * D-1517: where the print service has printers, the module's print dialog asks for the printer (the workplace's default chosen)
+ * and shows the cropped label; «Drucken» sends it as a picture to the print service. The PDF itself never leaves the browser here.
+ * run() answers false when the dialog is cancelled.
  */
 (function () {
 	'use strict';
@@ -373,9 +374,9 @@
 		});
 	}
 
-	// D-1517 (Stefan 20.11. «aufs moderne Drucken umstellen»): each label as a picture to the print service, on the workplace's
-	// default printer. Answers 'sent', or 'browser' where the service cannot: no default printer, a refusal, a failed job.
-	function toService(pages, caption) {
+	// D-1517 (Stefan 20.11. «aufs moderne Drucken umstellen»): each label as a picture to the print service. Answers 'sent', or
+	// 'browser' where the service cannot: a refusal, a failed job.
+	function toService(pages, caption, printer) {
 		var service = taxmodLabel62.service;
 
 		return pages.reduce(function (before, label) {
@@ -384,11 +385,10 @@
 					return state;
 				}
 
-				stamp(label, caption);
 				notice(service.sending);
 
 				return new Promise(function (done) { label.toBlob(done, 'image/png'); }).then(function (png) {
-					var fields = { action: service.action, caption: caption || '', png: png };
+					var fields = { action: service.action, caption: caption || '', printer: printer, png: png };
 					fields[service.nonceField] = service.nonce;
 					return post(fields);
 				}).then(function (answer) {
@@ -409,6 +409,71 @@
 		}, Promise.resolve('sent'));
 	}
 
+	// Stefan 20.11. 18:28 «eigentlich müsste ja der Druckdialog kommen … der Drucker … mit der Voransicht»: the label module's
+	// print dialog, drawn by the server (LabelButton::postageDialog) — printer, preview, «Drucken». Answers 'sent', 'browser' (no
+	// printer, «Ohne Drucker», or the service failed) or 'cancelled'.
+	function confirmed(pages, caption) {
+		var service = taxmodLabel62.service;
+		var fields = { action: service.dialog };
+		fields[service.nonceField] = service.nonce;
+
+		return post(fields).then(function (answer) {
+			var data = answer.data || {};
+
+			if (!answer.success) {
+				notice(data.message || '');
+				return 'browser';
+			}
+
+			var holder = document.createElement('div');
+			holder.innerHTML = data.html;
+			document.body.appendChild(holder);
+			var preview = holder.querySelector('[data-taxmod-label62-preview]');
+
+			pages.forEach(function (label) {
+				stamp(label, caption);
+				var image = document.createElement('img');
+				image.src = label.toDataURL('image/png');
+				image.alt = '';
+				image.style.cssText = 'display:block;max-width:100%;max-height:320px;margin:0 auto 4px;border:1px solid #c3c4c7;background:#fff';
+				preview.appendChild(image);
+			});
+
+			return new Promise(function (done) {
+				var settled = false;
+				var finish = function (state) {
+					if (!settled) {
+						settled = true;
+						holder.remove();
+						done(state);
+					}
+				};
+
+				holder.querySelector('.taxmod-dialog-switch').addEventListener('change', function (event) {
+					if (!event.target.checked) {
+						finish('cancelled');
+					}
+				});
+				holder.querySelector('[data-taxmod-label62-send]').addEventListener('click', function () {
+					var printer = holder.querySelector('[name="printer"]').value;
+
+					// «Ohne Drucker (wie bisher)»: the browser's own print, as before the print service.
+					if (!printer) {
+						finish('browser');
+						return;
+					}
+
+					holder.remove();
+					settled = true;
+					toService(pages, caption, printer).then(done);
+				});
+			});
+		}).catch(function (failure) {
+			notice(failure.message);
+			return 'browser';
+		});
+	}
+
 	// options.cutMarks: the PDF has corner crosses to cut along (the Post shop's stamp); they are left out of the label.
 	// options.browser: the browser's print dialog even where the print service is set up.
 	function run(source, caption, options) {
@@ -418,9 +483,13 @@
 				return false;
 			}
 
-			var sent = taxmodLabel62.service && !(options && options.browser) ? toService(pages, caption) : Promise.resolve('browser');
+			var asked = taxmodLabel62.service && !(options && options.browser) ? confirmed(pages, caption) : Promise.resolve('browser');
 
-			return sent.then(function (state) {
+			return asked.then(function (state) {
+				if (state === 'cancelled') {
+					return false;
+				}
+
 				return state === 'sent' ? true : print(pages, caption).then(function () { return true; });
 			});
 		}).catch(function (failure) {
