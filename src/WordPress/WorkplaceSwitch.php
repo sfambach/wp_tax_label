@@ -30,9 +30,17 @@ final class WorkplaceSwitch
         add_action('admin_notices', self::notice(...));
     }
 
-    /** null where the person may not print or the model has no workplaces. */
+    private static ?WorkplaceMenu $menu = null;
+
+    private static bool $read = false;
+
+    /** null where the person may not print or the model has no workplaces; the workplaces are read once per request (CD-7). */
     private static function menu(): ?WorkplaceMenu
     {
+        if (self::$read) {
+            return self::$menu;
+        }
+        self::$read = true;
         if (! is_user_logged_in() || ! current_user_can(Modeller::CAPABILITY)) {
             return null;
         }
@@ -41,7 +49,16 @@ final class WorkplaceSwitch
             return null;
         }
 
-        return new WorkplaceMenu($service->workplaceNames(), $service->workplace());
+        // The node's records only: a workplace in the trash is no longer one of them (D-1509).
+        return self::$menu = new WorkplaceMenu($service->workplaceNames(), $service->workplace());
+    }
+
+    /** Prüftor D-1518: the switch and the reminder stand on Taxmod's own admin pages only. */
+    private static function onTaxmodPage(): bool
+    {
+        $screen = is_admin() && function_exists('get_current_screen') ? get_current_screen() : null;
+
+        return $screen !== null && str_contains((string) $screen->id, 'taxmod');
     }
 
     public static function url(int $place): string
@@ -51,7 +68,7 @@ final class WorkplaceSwitch
 
     public static function bar(\WP_Admin_Bar $bar): void
     {
-        $menu = self::menu();
+        $menu = self::onTaxmodPage() ? self::menu() : null;
         if ($menu === null) {
             return;
         }
@@ -72,7 +89,7 @@ final class WorkplaceSwitch
         $bar->add_node(['parent' => 'taxmod-workplace', 'id' => 'taxmod-workplace-manage', 'title' => esc_html__('Arbeitsplätze verwalten', 'taxmod-label'), 'href' => WorkplacesPage::url()]);
     }
 
-    /** admin-post: capability → nonce → validate → sanitize → act (CD-5). */
+    /** admin-post: capability → nonce → the workplace exists (not in the trash) → user meta (CD-5, D-1518). */
     public static function handle(): never
     {
         if (! current_user_can(Modeller::CAPABILITY)) {
@@ -88,11 +105,10 @@ final class WorkplaceSwitch
         exit;
     }
 
-    /** The reminder on Taxmod's own pages while workplaces exist and none is chosen. */
+    /** The reminder on Taxmod's own pages while workplaces exist and none is chosen, in WordPress's own notice (D-1518). */
     public static function reminder(): string
     {
-        $screen = function_exists('get_current_screen') ? get_current_screen() : null;
-        $menu   = $screen !== null && str_contains((string) $screen->id, 'taxmod') ? self::menu() : null;
+        $menu = self::onTaxmodPage() ? self::menu() : null;
         if ($menu === null || ! $menu->remindsToChoose()) {
             return '';
         }
@@ -101,7 +117,7 @@ final class WorkplaceSwitch
             array_filter($menu->choices(), static fn (array $choice): bool => $choice['id'] > 0)
         ));
 
-        return '<div class="notice notice-info"><p>' . esc_html__('Kein Arbeitsplatz gewählt — der Druckdialog zeigt alle Drucker. Wo bist du?', 'taxmod-label') . ' ' . $links . '</p></div>';
+        return wp_get_admin_notice(esc_html__('Kein Arbeitsplatz gewählt — der Druckdialog zeigt alle Drucker. Wo bist du?', 'taxmod-label') . ' ' . $links, ['type' => 'info']);
     }
 
     public static function notice(): void
