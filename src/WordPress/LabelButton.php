@@ -10,6 +10,7 @@ use Taxmod\WordPress\ModelDoor;
 use Taxmod\WordPress\Plugin as Modeller;
 use Taxmod\WordPress\Printing\PrintService;
 use TaxmodLabel\Core\FilledLabel;
+use TaxmodLabel\Core\LabelCatalog;
 use TaxmodLabel\Core\LabelContent;
 use TaxmodLabel\Core\LabelError;
 use TaxmodLabel\Core\LabelFormat;
@@ -29,7 +30,7 @@ use TaxmodLabel\Core\LabelTemplate;
  * «Etiketten» it prints from); the dialog then offers that category's labels and the printers whose roll allows them.
  *
  * @see docs/konzept.md §7
- * @see wp-taxonomy-modeler docs/NewConcept/90-decision-log.md D-1120, D-1292
+ * @see wp-taxonomy-modeler docs/NewConcept/90-decision-log.md D-1120, D-1292, D-1494
  */
 final class LabelButton
 {
@@ -150,13 +151,17 @@ final class LabelButton
         // D-1192: the label and the printer chosen in the dialog; a printer whose roll does not allow the label is refused.
         if (isset($post['choice'])) {
             $choice   = absint($post['choice']);
-            $document = json_decode((string) (((array) ($post['documents'] ?? []))[$choice] ?? ''), true);
+            $posted   = ((array) ($post['documents'] ?? []))[$choice] ?? null;
+            // The dialog of a label from the catalog posts no document: it is filled here, from the catalog it was drawn from.
+            $catalog  = $posted === null ? self::catalog() : null;
+            $document = $posted === null ? self::documentOf($catalog, $choice, $post) : json_decode((string) $posted, true);
             $printer  = (string) ($post['printer'] ?? '');
             if (! is_array($document)) {
                 self::fail(esc_html__('Unknown label.', 'taxmod-label'), 400, $post ?? []);
             }
             if ($printer !== '') {
-                $raw = json_decode((string) (((array) ($post['printers'] ?? []))[absint($printer)] ?? ''), true);
+                $raw = $posted === null ? self::printerOf($catalog, absint($printer), $choice)
+                    : json_decode((string) (((array) ($post['printers'] ?? []))[absint($printer)] ?? ''), true);
                 if (! is_array($raw) || ! in_array($choice, array_map('intval', (array) ($raw['allows'] ?? [])), true)) {
                     self::fail(esc_html__('This printer has no roll for this label.', 'taxmod-label'), 400, $post ?? []);
                 }
@@ -381,6 +386,86 @@ final class LabelButton
         }
     }
 
+    /** @var array<int, string> label id ⇒ its word in the dialog's choice, '' for one that cannot be filled; per request */
+    private static array $words = [];
+
+    private static ?LabelCatalog $catalog = null;
+
+    /** The labels as this person's dialogs offer them (D-1502), read once per request; null while the model has none. */
+    private static function catalog(): ?LabelCatalog
+    {
+        try {
+            return self::$catalog ??= (new LabelService())->dialogCatalog();
+        } catch (LabelError) {
+            return null;
+        }
+    }
+
+    /**
+     * D-1494: whether a dialog offers the catalog's own labels and printers, each label with the same values — then the server can fill
+     * the chosen one itself. A host that brings a template of its own (D-1153) keeps posting its documents.
+     *
+     * @param array<mixed>         $choices
+     * @param array<string, mixed> $template
+     */
+    private static function isOfCatalog(array $choices, array $template): bool
+    {
+        $catalog = self::catalog();
+        if ($catalog === null || ($template['printers'] ?? null) !== $catalog->printerList()) {
+            return false;
+        }
+        $values = $template['values'] ?? [];
+        foreach ($choices as $id => $choice) {
+            $own = $catalog->get((int) $id);
+            if ($own === null || ! is_array($choice) || isset($choice['printer']) || ($choice['values'] ?? []) !== $values
+                || ($choice['name'] ?? null) !== $own['name'] || ($choice['format'] ?? null) !== $own['format'] || ($choice['layout'] ?? null) !== $own['layout']) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * D-1494: the document of a label of the catalog, filled as {@see chooser()} did while it still posted one: the code, title and
+     * subtitle the dialog names, then the module's values for what those leave open.
+     *
+     * @param array<string, mixed> $post
+     * @return array<string, mixed>|null
+     */
+    private static function documentOf(?LabelCatalog $catalog, int $choice, array $post): ?array
+    {
+        $own = $catalog?->get($choice);
+        if ($own === null) {
+            return null;
+        }
+        $fields = array_values((array) ($post['value_fields'] ?? []));
+        $texts  = array_values((array) ($post['value_texts'] ?? []));
+        $values = [];
+        foreach ($fields as $at => $field) {
+            if (is_scalar($field) && is_scalar($texts[$at] ?? null)) {
+                $values[(string) $field] = (string) $texts[$at];
+            }
+        }
+        $text   = static fn (string $key): string => is_scalar($post[$key] ?? null) ? (string) $post[$key] : '';
+        $filled = self::filled(new LabelContent($text('code'), $text('title'), $text('subtitle')), LabelCatalog::forButton(array_diff_key($own, ['printer' => 1]), ['values' => $values]));
+
+        return $filled === null ? null : json_decode($filled->toJson(), true);
+    }
+
+    /**
+     * D-1494: the printer a dialog of catalog labels chose, read from the catalog as this person sees it — so a printer outside
+     * their workplace (D-1502) is none, and so is one whose loaded roll does not allow the label (D-1192).
+     *
+     * @return array<string, mixed>|null
+     */
+    private static function printerOf(?LabelCatalog $catalog, int $printer, int $choice): ?array
+    {
+        $own = $catalog?->printerList()[$printer] ?? null;
+
+        return is_array($own) && in_array($choice, array_map('intval', (array) ($own['allows'] ?? [])), true) ? $own : null;
+    }
+
     /**
      * D-1192: the label and printer chosen in the dialog — one select each, the chosen label first, the printers its roll allows.
      * Every label is filled here, so what prints is what the dialog showed; a small script keeps the printer list to the label.
@@ -400,13 +485,31 @@ final class LabelButton
         // when the label is printed, not when the dialog is drawn — no query per row (CD-7).*
         $record   = absint($template['record'] ?? 0);
         $hidden   = $record > 0 ? '<input type="hidden" name="record" value="' . $record . '">' : '';
+        // D-1494: a list draws this dialog once per row. Labels that are the catalog's own are filled when one is printed
+        // ({@see documentOf()}), so a row carries what is its own — code, title, the module's values — and no document.
+        $light = self::isOfCatalog($choices, $template);
+        if ($light) {
+            foreach (is_array($template['values'] ?? null) ? $template['values'] : [] as $field => $value) {
+                if (is_scalar($value)) {
+                    $hidden .= '<input type="hidden" name="value_fields[]" value="' . esc_attr((string) $field) . '"><input type="hidden" name="value_texts[]" value="' . esc_attr((string) $value) . '">';
+                }
+            }
+        }
         foreach ($choices as $id => $choice) {
-            $filled = is_array($choice) ? self::filled($label, array_merge($choice, ['record' => 0])) : null;
-            if ($filled === null) {
+            $word = $light && array_key_exists((int) $id, self::$words) ? self::$words[(int) $id] : null;
+            if ($word === null) {
+                $filled = is_array($choice) ? self::filled($label, array_merge($choice, ['record' => 0])) : null;
+                $word   = $filled === null ? '' : trim($filled->templateName . ' · ' . self::size($filled->format), ' ·');
+                if ($light) {
+                    self::$words[(int) $id] = $word;
+                } elseif ($filled !== null) {
+                    $hidden .= '<input type="hidden" name="documents[' . (int) $id . ']" value="' . esc_attr($filled->toJson()) . '">';
+                }
+            }
+            if ($word === '') {
                 continue;
             }
-            $labels .= '<option value="' . (int) $id . '"' . selected((int) $id, $chosen, false) . '>' . esc_html(trim($filled->templateName . ' · ' . self::size($filled->format), ' ·')) . '</option>';
-            $hidden .= '<input type="hidden" name="documents[' . (int) $id . ']" value="' . esc_attr($filled->toJson()) . '">';
+            $labels .= '<option value="' . (int) $id . '"' . selected((int) $id, $chosen, false) . '>' . esc_html($word) . '</option>';
             // D-1199: the texts a label may print in one of its fields, one per choice in the dialog — the module fills them.
             foreach (self::variantsOf($choice) as $key => $variant) {
                 $hidden .= '<input type="hidden" name="variants[' . (int) $id . '][' . esc_attr($key) . ']" value="' . esc_attr($variant['text']) . '">';
@@ -424,7 +527,7 @@ final class LabelButton
             $first  = $first && ! $pick;
             $printers .= '<option value="' . (int) $id . '" data-allows="' . esc_attr(implode(' ', $allows)) . '"' . ($pick ? ' selected' : '') . '>'
                 . esc_html(trim((string) ($printer['name'] ?? '') . ' · ' . (string) ($printer['roll_name'] ?? ''), ' ·')) . '</option>';
-            $hidden .= '<input type="hidden" name="printers[' . (int) $id . ']" value="' . esc_attr((string) json_encode($printer)) . '">';
+            $hidden .= $light ? '' : '<input type="hidden" name="printers[' . (int) $id . ']" value="' . esc_attr((string) json_encode($printer)) . '">';
         }
 
         $html = '<label style="display:block;margin-bottom:.5em"><span style="display:block;font-weight:600">' . esc_html__('Etikett', 'taxmod-label') . '</span>'

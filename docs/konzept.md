@@ -197,6 +197,17 @@ Andockstellen (D-1292, D-1294):
 | `taxmod_print_render` | Druckaufträge ohne fertiges PDF («Nochmal drucken») | das PDF |
 | `taxmod_label_for` | Ability `taxmod-label/print` | der Besitzer des Codes (Lager: M-, P-, O-, K-) baut das Etikett wie sein Dialog (D-1235) |
 
+**Der Dialog in einer Liste (D-1494).** Eine Liste zeichnet den Druckknopf je Zeile. Bietet der Dialog die Etiketten und Drucker des Katalogs an, trägt die Zeile nur, was ihr eigen ist: Code, Titel, Satz und die Werte des Moduls. Das gewählte Etikett füllt der Server beim Drucken aus demselben Katalog, und er prüft dort, ob die Rolle des Druckers es erlaubt und ob der Drucker zum Arbeitsplatz der Person gehört (D-1502). Bringt eine Gastseite eine eigene Vorlage mit (D-1153), postet der Dialog wie bisher die gefüllten Dokumente.
+
+```mermaid
+flowchart LR
+  Z["Zeile: Code · Titel · Satz · Werte · Wahl"] -- "Drucken / Vorschau" --> S["Server"]
+  K["Katalog (Etiketten, Drucker)"] --> S
+  S --> D["gefülltes Etikett → PDF / Druckauftrag"]
+```
+
+Gemessen 2026-11-20 mit den acht Materialetiketten und vier Druckern der Seite: 17,6 KB → 3,8 KB je Knopf. Geprüft von `scripts/dev/label-button-check.php`.
+
 Freigegeben mit D-1296:
 
 | Filter | Wer fragt | Wer antwortet |
