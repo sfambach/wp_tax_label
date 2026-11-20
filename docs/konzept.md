@@ -242,6 +242,15 @@ flowchart LR
   S --> Y["eBay: Etikett zur Sendung"]
 ```
 
+**Porto über den Druckdienst (D-1517).** Stefan 20.11. 17:04: «jetzt mal aufs moderne Drucken umstellen … nur ein Bild in das Etikett». `taxmodLabel62.run` schneidet das Porto-PDF im Browser zu wie bisher. Hat der Arbeitsplatz der Person einen Standarddrucker (D-1502), geht das zugeschnittene Bild als PNG an den einen Endpunkt `PostagePrint`. Der prüft Recht, Nonce und Bild (nur PNG, höchstens 5 MB, plausible Größe). `PostageLabel` legt das Bild auf ein 100-mm-Etikett quer über die Rolle, so groß wie der Browser-Druck es hatte, und `ModelDoor::queuePrint` gibt es als Auftrag an diesen Drucker. Ohne Standarddrucker, bei Ablehnung oder bei einem fehlgeschlagenen Auftrag druckt der Browser wie bisher, mit Hinweis. Versand und eBay ändern nichts: sie rufen nur `taxmodLabel62.run`. Gedruckt wird nur auf Klick. Fertige Aufträge entfernt die Aufbewahrung der Druckaufträge im Modeller (D-1307); ein Nachdruck kommt aus dem Porto-Speicher (D-1513).
+
+```mermaid
+flowchart LR
+  K["Klick"] --> R["run(): PDF → Bild"]
+  R -->|Standarddrucker| E["PostagePrint: Recht → Nonce → PNG"] --> Q["queuePrint · Druckdienst"]
+  R -->|keiner / Fehler| B["Browser-Druck"]
+```
+
 ## 8 · Stufe 2 — Felder füllen (offen)
 
 Heute: ein Element liest ein Feld des Satzes nach Namen (D-1160), «A|B» nimmt das erste gefüllte (D-1217). Feste Felder wie `code`, `title`, `subtitle`, `inhalt` setzt der jeweilige Aufrufer im Code.
@@ -268,3 +277,6 @@ Dasselbe Layout auf A4, mit einem Bereich, der sich je Zeile wiederholt (Rechnun
 - Die Auflösung zum Prüfen ist im Editor wählbar (203 / 300 / 600 dpi und die der Drucker); sie kommt aus dem vorhandenen Feld «Auflösung (dpi)» des Druckers (`printer_dpi`, D-1296); leer heißt 203 dpi.
 - Der Druckknopf des Moduls antwortet mit Priorität 20, damit er bis zum Einspielen ohne Etikettencode im Modeller gewinnt.
 - Ein Bild wird nur gelesen, wenn es höchstens 4 MB hat.
+- D-1517: Das Porto-Etikett ist immer 100 mm lang (die Seite, die der Brother-Treiber für Endlosband nimmt); ein längeres Etikett für große DHL-Labels ist nicht gebaut.
+- D-1517: Der Versatz für Drucker, die mitten im Kopf anfangen (D-1190, Phomemo), wird beim Porto-Etikett nicht angewandt.
+- D-1517: Der Browser wartet höchstens 30 s auf «gedruckt»; danach geht die Seite weiter und der Auftrag druckt, sobald der Druckdienst ihn holt.

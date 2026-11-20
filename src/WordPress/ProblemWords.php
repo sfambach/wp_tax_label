@@ -59,6 +59,8 @@ final class ProblemWords
             'not_a_roll'     => sprintf(/* translators: %s: id */ __('Keine Rolle: %s.', 'taxmod-label'), $error->detail),
             'not_a_medium'   => sprintf(/* translators: %s: printer */ __('%s kann dieses Druckmedium nicht; es steht nicht in seinen «Druckmedien».', 'taxmod-label'), $error->detail),
             'not_postage'    => sprintf(/* translators: %s: why */ __('Diese Marke wird nicht gespeichert: %s.', 'taxmod-label'), $error->detail),
+            'not_postage_picture'  => sprintf(/* translators: %s: why */ __('Dieses Etikett wird nicht gedruckt: %s.', 'taxmod-label'), $error->detail),
+            'no_workplace_printer' => __('Kein Standarddrucker am Arbeitsplatz: es wird über den Browser gedruckt.', 'taxmod-label'),
             'not_a_printer'  => sprintf(/* translators: %s: id */ __('Kein Drucker: %s.', 'taxmod-label'), $error->detail),
             default          => $error->getMessage(),
         };
