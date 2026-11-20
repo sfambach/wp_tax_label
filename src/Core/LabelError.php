@@ -20,6 +20,18 @@ final class LabelError extends \RuntimeException
         return new self('not_postage', $why);
     }
 
+    /** D-1517: what the postage print takes — a PNG of the cropped label, not too large, of a plausible size. */
+    public static function notAPostagePicture(string $why): self
+    {
+        return new self('not_postage_picture', $why);
+    }
+
+    /** D-1517: the person has no workplace, or its default printer is missing or switched off. */
+    public static function noWorkplacePrinter(): self
+    {
+        return new self('no_workplace_printer');
+    }
+
     public static function notConfigured(string $key): self
     {
         return new self('not_configured', $key);

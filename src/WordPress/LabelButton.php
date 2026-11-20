@@ -50,7 +50,7 @@ final class LabelButton
 
     public const ACTION = 'taxmod_label_queue';
 
-    private const NONCE = '_taxmod_label_nonce';
+    public const NONCE = '_taxmod_label_nonce';
 
     /** D-1221: the dialog asks for the state of the job it sent until the service has printed it. */
     public const STATUS_ACTION = 'taxmod_label_job_status';

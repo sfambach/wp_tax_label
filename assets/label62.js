@@ -1,11 +1,13 @@
 /**
  * D-1507: fits a postage PDF (eBay's DHL label, a Deutsche Post Internetmarke) onto the 62 mm tape of the Brother QL-810W: every page is
  * rendered, cropped to its printed area, turned upright and printed at tape width, with an optional caption in its empty corner. The PDF
- * is read in the browser only, never uploaded or stored, and printed only on a click.
+ * is read in the browser only and printed only on a click; D-1517: what may leave the browser is the cropped picture, to the print service.
  *
  * Other modules use it through the handle taxmod-label62: taxmodLabel62.run(blob, caption) → Promise<boolean>, or a button with
  * data-taxmod-label62-pick="caption" that asks for the PDF file. D-1511: the same building block chooses and reads the PDF for everyone —
  * taxmodLabel62.pick() → Promise<File|null> and taxmodLabel62.lines(blob) → Promise<list<string>>, the printed text top to bottom.
+ * D-1517: where the person's workplace has a default printer, the cropped label goes to the print service as a picture instead
+ * of the browser's dialog; the PDF itself still never leaves the browser here.
  */
 (function () {
 	'use strict';
@@ -249,9 +251,11 @@
 
 	// Order and seller go into the empty bottom right corner of the label itself, so the label keeps the full page.
 	function stamp(label, caption) {
-		if (!caption) {
+		if (!caption || label.stamped) {
 			return;
 		}
+
+		label.stamped = true;
 
 		var context = label.getContext('2d');
 		var size = Math.round(Math.min(label.width, label.height) * 0.035);
@@ -310,16 +314,114 @@
 		});
 	}
 
+	// D-1517: a line at the bottom of the page saying what the print service did.
+	function notice(text) {
+		var box = document.querySelector('.taxmod-label62-notice');
+
+		if (!box) {
+			box = document.createElement('div');
+			box.className = 'taxmod-label62-notice';
+			box.setAttribute('role', 'status');
+			box.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:100000;max-width:420px;padding:8px 12px;background:#fff;border-left:4px solid #2271b1;box-shadow:0 1px 4px rgba(0,0,0,.3)';
+			document.body.appendChild(box);
+		}
+
+		box.textContent = text;
+
+		clearTimeout(box.hideAt);
+		box.hideAt = setTimeout(function () { box.remove(); }, 20000);
+	}
+
+	function post(fields) {
+		var body = new FormData();
+		Object.keys(fields).forEach(function (name) { body.append(name, fields[name]); });
+
+		return fetch(taxmodLabel62.service.url, { method: 'POST', credentials: 'same-origin', body: body }).then(function (response) {
+			return response.json().catch(function () { return { success: false, data: { message: response.statusText } }; });
+		});
+	}
+
+	// The job is watched until the service says it is done, at most WAIT seconds: a page that goes on afterwards (Versand
+	// records the stamp and reloads) then shows nothing more, and a job still waiting prints once the service picks it up.
+	// Answers false where the service failed or cancelled it: the browser's dialog then prints.
+	var WAIT = 30;
+
+	function watch(job) {
+		var service = taxmodLabel62.service;
+
+		return new Promise(function (done) {
+			var started = Date.now();
+
+			(function ask() {
+				var fields = { action: service.status, job: job };
+				fields[service.statusField] = service.statusNonce;
+				post(fields).then(function (answer) {
+					var data = answer.data || {};
+
+					if (!answer.success || data.done) {
+						notice(data.message || '');
+						return done(answer.success && data.ok);
+					}
+
+					if (data.waiting) {
+						notice(data.waiting);
+					}
+
+					return Date.now() - started > WAIT * 1000 ? done(true) : setTimeout(ask, 2000);
+				}).catch(function () { done(true); });
+			}());
+		});
+	}
+
+	// D-1517 (Stefan 20.11. «aufs moderne Drucken umstellen»): each label as a picture to the print service, on the workplace's
+	// default printer. Answers 'sent', or 'browser' where the service cannot: no default printer, a refusal, a failed job.
+	function toService(pages, caption) {
+		var service = taxmodLabel62.service;
+
+		return pages.reduce(function (before, label) {
+			return before.then(function (state) {
+				if (state !== 'sent') {
+					return state;
+				}
+
+				stamp(label, caption);
+				notice(service.sending);
+
+				return new Promise(function (done) { label.toBlob(done, 'image/png'); }).then(function (png) {
+					var fields = { action: service.action, caption: caption || '', png: png };
+					fields[service.nonceField] = service.nonce;
+					return post(fields);
+				}).then(function (answer) {
+					var data = answer.data || {};
+
+					if (!answer.success) {
+						notice(data.message || '');
+						return 'browser';
+					}
+
+					notice(data.message);
+					return watch(data.job).then(function (printed) { return printed ? 'sent' : 'browser'; });
+				}).catch(function (failure) {
+					notice(failure.message);
+					return 'browser';
+				});
+			});
+		}, Promise.resolve('sent'));
+	}
+
 	// options.cutMarks: the PDF has corner crosses to cut along (the Post shop's stamp); they are left out of the label.
+	// options.browser: the browser's print dialog even where the print service is set up.
 	function run(source, caption, options) {
 		return labels(source, !!(options && options.cutMarks)).then(function (pages) {
 			if (!pages.length) {
 				window.alert(taxmodLabel62.empty);
-				return;
+				return false;
 			}
 
-			return print(pages, caption).then(function () {
-				return true;
+			var sent = taxmodLabel62.service && !(options && options.browser) ? toService(pages, caption) : Promise.resolve('browser');
+
+			return sent.then(function (state) {
+				return state === 'sent' ? true : print(pages, caption).then(function () { return true; });
 			});
 		}).catch(function (failure) {
 			window.alert(taxmodLabel62.failed + ' ' + failure.message);
