@@ -2,6 +2,7 @@
 
 namespace TaxmodLabel\WordPress\Admin;
 
+use Taxmod\WordPress\Draw\SelectMarkup;
 use Taxmod\WordPress\Admin\ListPage;
 use Taxmod\WordPress\Plugin as Modeller;
 use TaxmodLabel\WordPress\EditorRoutes;
@@ -125,15 +126,12 @@ final class LabelsPage
             $body = '<tr class="no-items"><td class="colspanchange" colspan="6">' . esc_html__('Noch keine Etiketten.', 'taxmod-label') . '</td></tr>';
         }
         $categories = $service->records()['categories'];
-        $new        = '';
-        foreach ([$service->records()['root'] => __('ohne Kategorie', 'taxmod-label')] + $categories as $node => $name) {
-            $new .= '<option value="' . esc_attr((string) $node) . '">' . esc_html($name) . '</option>';
-        }
+        $new        = [$service->records()['root'] => __('ohne Kategorie', 'taxmod-label')] + $categories;
 
         // D-1500: «Neues Etikett» stands in the list's one bar, not in a row of its own above it.
         $create = '<div class="alignleft actions"><form method="get" action="' . esc_url(admin_url('admin.php')) . '">'
             . '<input type="hidden" name="page" value="taxmod-lager-modul"><input type="hidden" name="module" value="' . esc_attr(self::SLUG) . '">'
-            . '<label>' . esc_html__('Kategorie', 'taxmod-label') . ' <select name="neu">' . $new . '</select></label> '
+            . '<label>' . esc_html__('Kategorie', 'taxmod-label') . ' ' . SelectMarkup::of('neu', $new, null, false) . '</label> '
             . ListPage::button(__('Neues Etikett', 'taxmod-label'), '', true) . '</form></div>';
 
         return ListPage::listBar(sprintf(/* translators: %d: number of labels */ _n('%d Etikett', '%d Etiketten', count($labels), 'taxmod-label'), count($labels)), $create)

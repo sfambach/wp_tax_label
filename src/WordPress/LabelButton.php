@@ -2,6 +2,7 @@
 
 namespace TaxmodLabel\WordPress;
 
+use Taxmod\WordPress\Draw\SelectMarkup;
 use Taxmod\Core\Printing\LabelPrefix;
 use Taxmod\Core\Printing\PrintJobStatus;
 use Taxmod\WordPress\Admin\ListPage;
@@ -88,10 +89,9 @@ final class LabelButton
         $chooser = self::chooser($label, $template);
         $filled = $chooser === null ? self::filled($label, $template) : null;
         $default = self::DEFAULT_FORMAT[$kind->value];
-        $options = '';
+        $options = [];
         foreach (LabelFormat::shipped() as $format) {
-            $options .= '<option value="' . esc_attr($format->key) . '"' . selected($format->key, $default, false) . '>'
-                . esc_html(self::size($format)) . '</option>';
+            $options[$format->key] = self::size($format);
         }
         $service = self::serviceIsSetUp();
         $switch = 'taxmod-label-' . strtolower($kind->value) . '-' . $id;
@@ -100,7 +100,7 @@ final class LabelButton
         // narrow screen the preview stays below (assets/admin.css).
         $body = '<span class="taxmod-label-dialog"><span class="taxmod-label-dialog-options">' . ($chooser !== null ? $chooser['html'] : ($filled === null
                 ? '<label style="display:block;margin-bottom:.5em"><span style="display:block;font-weight:600">' . esc_html__('Format', 'taxmod-label') . '</span>'
-                    . '<select name="format">' . $options . '</select></label>'
+                    . SelectMarkup::of('format', $options, $default, false) . '</label>'
                 : '<span style="display:block;margin-bottom:.5em"><span style="display:block;font-weight:600">' . esc_html__('Vorlage', 'taxmod-label') . '</span>'
                     . esc_html(trim($filled->templateName . ' · ' . self::size($filled->format) . ($filled->printer === null ? '' : ' · ' . ($filled->printer->name !== '' ? $filled->printer->name : $filled->printer->queue)), ' ·')) . '</span>'))
             // D-1152, his word 2026-11-04: «Bei etikett druck anzahl mit aufnehmen» — the module says how many to start with.
@@ -473,14 +473,11 @@ final class LabelButton
             return '';
         }
         $chosen = (string) ($template['variants']['chosen'] ?? array_key_first($options));
-        $html   = '';
-        foreach ($options as $key => $option) {
-            $html .= '<option value="' . esc_attr($key) . '"' . selected($key, $chosen, false) . '>' . esc_html($option['name']) . '</option>';
-        }
+        $words  = array_map(static fn (array $option): string => (string) $option['name'], $options);
 
         return '<input type="hidden" name="variant_field" value="' . esc_attr($field) . '">'
             . '<label style="display:block;margin-bottom:.5em"><span style="display:block;font-weight:600">' . esc_html((string) ($template['variants']['label'] ?? $field)) . '</span>'
-            . '<select name="variant">' . $html . '</select></label>';
+            . SelectMarkup::of('variant', $words, $chosen, false) . '</label>';
     }
 
     /**
