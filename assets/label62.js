@@ -4,7 +4,8 @@
  * is read in the browser only, never uploaded or stored, and printed only on a click.
  *
  * Other modules use it through the handle taxmod-label62: taxmodLabel62.run(blob, caption) → Promise<boolean>, or a button with
- * data-taxmod-label62-pick="caption" that asks for the PDF file.
+ * data-taxmod-label62-pick="caption" that asks for the PDF file. D-1511: the same building block chooses and reads the PDF for everyone —
+ * taxmodLabel62.pick() → Promise<File|null> and taxmodLabel62.lines(blob) → Promise<list<string>>, the printed text top to bottom.
  */
 (function () {
 	'use strict';
@@ -116,8 +117,45 @@
 		return out;
 	}
 
+	async function open(file) {
+		return pdfjsLib.getDocument({ data: await file.arrayBuffer(), cMapUrl: taxmodLabel62.cmaps, cMapPacked: true, standardFontDataUrl: taxmodLabel62.fonts }).promise;
+	}
+
+	// Text items grouped into lines, page after page, each page top to bottom and each line's words left to right.
+	async function lines(file) {
+		var pdf = await open(file);
+		var all = [];
+
+		for (var number = 1; number <= pdf.numPages; number++) {
+			var content = await (await pdf.getPage(number)).getTextContent();
+			var rows = [];
+
+			content.items.forEach(function (item) {
+				if (!item.str.trim()) {
+					return;
+				}
+
+				var y = item.transform[5];
+				var row = rows.find(function (r) { return Math.abs(r.y - y) < 3; });
+
+				if (!row) {
+					row = { y: y, words: [] };
+					rows.push(row);
+				}
+
+				row.words.push({ x: item.transform[4], text: item.str.trim() });
+			});
+
+			rows.sort(function (a, b) { return b.y - a.y; }).forEach(function (row) {
+				all.push(row.words.sort(function (a, b) { return a.x - b.x; }).map(function (w) { return w.text; }).join(' ').replace(/\s+/g, ' '));
+			});
+		}
+
+		return all;
+	}
+
 	async function labels(file) {
-		var pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer(), cMapUrl: taxmodLabel62.cmaps, cMapPacked: true, standardFontDataUrl: taxmodLabel62.fonts }).promise;
+		var pdf = await open(file);
 		var pages = [];
 
 		for (var number = 1; number <= pdf.numPages; number++) {
@@ -210,9 +248,23 @@
 		});
 	}
 
-	taxmodLabel62.run = run;
+	// The PDF from the owner's own disk: read here, never sent anywhere. A closed file dialog answers nothing.
+	function pick() {
+		return new Promise(function (done) {
+			var input = document.createElement('input');
+			input.type = 'file';
+			input.accept = 'application/pdf,.pdf';
+			input.addEventListener('change', function () {
+				done(input.files && input.files.length ? input.files[0] : null);
+			});
+			input.click();
+		});
+	}
 
-	// The PDF from the owner's own disk: read here, printed on his choice of file, never sent anywhere.
+	taxmodLabel62.run = run;
+	taxmodLabel62.pick = pick;
+	taxmodLabel62.lines = lines;
+
 	document.addEventListener('click', function (event) {
 		var button = event.target.closest('[data-taxmod-label62-pick]');
 
@@ -221,19 +273,15 @@
 		}
 
 		event.preventDefault();
-		var input = document.createElement('input');
-		input.type = 'file';
-		input.accept = 'application/pdf,.pdf';
-		input.addEventListener('change', function () {
-			if (!input.files || !input.files.length) {
+		pick().then(function (file) {
+			if (!file) {
 				return;
 			}
 
 			button.disabled = true;
-			run(input.files[0], button.getAttribute('data-taxmod-label62-pick')).finally(function () {
+			run(file, button.getAttribute('data-taxmod-label62-pick')).finally(function () {
 				button.disabled = false;
 			});
 		});
-		input.click();
 	});
 }());
