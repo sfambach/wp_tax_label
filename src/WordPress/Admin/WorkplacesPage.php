@@ -59,7 +59,8 @@ final class WorkplacesPage
         $chosen   = absint($_GET['satz'] ?? 0);
         if ($chosen > 0 && isset($places[$chosen])) {
             return ListPage::head($places[$chosen], self::url(), __('Arbeitsplätze', 'taxmod-label'))
-                . ListPage::beside((string) apply_filters('taxmod_record_editor', '', $chosen, self::url(['satz' => $chosen])), $this->facts($chosen, $service));
+                // Stefan 20.11. 18:07, a trial on this page only: the «?» behind the label, not behind the field (Modeller 0.2.179).
+                . ListPage::beside('<div class="taxmod-hints-at-label">' . (string) apply_filters('taxmod_record_editor', '', $chosen, self::url(['satz' => $chosen])) . '</div>', $this->facts($chosen, $service));
         }
         $body = '';
         foreach ($places as $id => $name) {
