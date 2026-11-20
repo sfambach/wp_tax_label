@@ -218,6 +218,17 @@ Der Editor spricht über zwei REST-Wege `taxmod-label/v1/preview` und `…/save`
 
 Druckaufträge legt das Modul über `ModelDoor::queuePrint($pdf, $format, $code, $title, $copies, $delivery)` an; der Modeller speichert das fertige PDF und liefert es dem Druckdienst unverändert (D-1294).
 
+**Porto-PDF auf 62 mm (D-1507).** Ein Porto-PDF, also das DHL-Etikett aus eBay oder eine im Post-Shop gekaufte Internetmarke, wird im Browser gelesen, auf seinen bedruckten Bereich zugeschnitten, gedreht und auf das 62-mm-Band des QL-810W gedruckt. Das PDF wird nicht hochgeladen und nicht gespeichert, und gedruckt wird nur auf Klick. Das Modul meldet dafür das Script `taxmod-label62` an, mit pdf.js in fester Version und lokal ausgeliefert. eBay und Versand hängen es nur über diesen Namen an. Fehlt das Etikettenmodul, zeigen sie keinen Knopf.
+
+```mermaid
+flowchart LR
+  E["eBay: Link aus der DHL-Mail"] --> J["taxmod-label62 (Browser)"]
+  V["Versand: PDF-Datei wählen"] --> J
+  J -- "zuschneiden · drehen" --> D["Druckdialog 62 × 100 mm"]
+```
+
+Die Maße 62 mm Band, 58 mm Druckbreite, 100 mm Seite, 300 dpi und 12 mm Lücke prüft `tests/Core/Label62ScriptTest.php`.
+
 ## 8 · Stufe 2 — Felder füllen (offen)
 
 Heute: ein Element liest ein Feld des Satzes nach Namen (D-1160), «A|B» nimmt das erste gefüllte (D-1217). Feste Felder wie `code`, `title`, `subtitle`, `inhalt` setzt der jeweilige Aufrufer im Code.
