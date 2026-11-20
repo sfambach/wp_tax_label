@@ -258,7 +258,7 @@ final class LabelButton
             return $template;
         }
         try {
-            $catalog = (new LabelService())->catalog();
+            $catalog = (new LabelService())->dialogCatalog();
         } catch (LabelError) {
             return [];
         }

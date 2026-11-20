@@ -194,6 +194,35 @@ final class LabelCatalog
         return array_keys($names);
     }
 
+    /**
+     * D-1502: the labels as one sees them at a workplace — only its printers, and each label starting on the workplace's
+     * default printer where that one's roll allows it, else on the first of its printers that does. Without a workplace, all.
+     */
+    public function at(?Workplace $place): self
+    {
+        if ($place === null) {
+            return $this;
+        }
+        $printers = array_intersect_key($this->printers, array_flip($place->printers));
+        // The default printer first, the others by name as before.
+        if (isset($printers[$place->defaultPrinter])) {
+            $printers = [$place->defaultPrinter => $printers[$place->defaultPrinter]] + $printers;
+        }
+        $templates = [];
+        foreach ($this->templates as $id => $template) {
+            unset($template['printer']);
+            foreach ($printers as $printer) {
+                if (in_array($id, $printer['allows'], true)) {
+                    $template['printer'] = array_diff_key($printer, ['allows' => 1, 'roll_name' => 1]);
+                    break;
+                }
+            }
+            $templates[$id] = $template;
+        }
+
+        return new self($templates, $printers);
+    }
+
     /** @return array<int, array<string, mixed>> D-1192: the printers, for the list under Druck › Drucker */
     public function printerList(): array
     {
