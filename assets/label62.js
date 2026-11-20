@@ -25,7 +25,7 @@
 	// Ink only: light grey (frames, cut marks, anti-aliasing) and single specks do not widen the label. Only the
 	// first block of ink counts — eBay's PDF carries the postage label on top and notes further down the page.
 	// gap: the blank height in pixels that ends the block.
-	function crop(canvas, gap) {
+	function crop(canvas, gap, cutMarks) {
 		var data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
 		var ink = new Uint8Array(canvas.width * canvas.height);
 		var rows = new Uint32Array(canvas.height), across = new Uint32Array(canvas.width);
@@ -34,7 +34,16 @@
 		for (var p = 0; p < ink.length; p++) {
 			if (data[p * 4] + data[p * 4 + 1] + data[p * 4 + 2] < 384) {
 				ink[p] = 1;
-				across[p % canvas.width]++;
+			}
+		}
+
+		if (cutMarks) {
+			dropCutMarks(ink, canvas.width, canvas.height);
+		}
+
+		for (var q = 0; q < ink.length; q++) {
+			if (ink[q]) {
+				across[q % canvas.width]++;
 			}
 		}
 
@@ -154,7 +163,66 @@
 		return all;
 	}
 
-	async function labels(file) {
+	// The Post shop's Internetmarke carries a small cross at each corner to cut along; counted as ink they keep the label
+	// small (Stefan 20.11. «Etwas klein»). Ink is grouped in 1 mm cells; a group no larger than a cross that sits in a
+	// corner of all the ink is dropped. Only for callers that ask (cutMarks), so eBay's DHL label stays as it was.
+	function dropCutMarks(ink, width, height) {
+		var cell = Math.round(DPI / 25.4), cols = Math.ceil(width / cell), lines = Math.ceil(height / cell);
+		var grid = new Uint8Array(cols * lines), group = new Int32Array(cols * lines).fill(-1), boxes = [];
+
+		for (var p = 0; p < ink.length; p++) {
+			if (ink[p]) {
+				grid[Math.floor(Math.floor(p / width) / cell) * cols + Math.floor((p % width) / cell)] = 1;
+			}
+		}
+
+		for (var start = 0; start < grid.length; start++) {
+			if (!grid[start] || group[start] >= 0) {
+				continue;
+			}
+
+			var box = { left: cols, top: lines, right: 0, bottom: 0 }, stack = [start];
+			group[start] = boxes.length;
+
+			while (stack.length) {
+				var at = stack.pop(), x = at % cols, y = Math.floor(at / cols);
+				box.left = Math.min(box.left, x); box.right = Math.max(box.right, x);
+				box.top = Math.min(box.top, y); box.bottom = Math.max(box.bottom, y);
+
+				for (var dy = -1; dy <= 1; dy++) {
+					for (var dx = -1; dx <= 1; dx++) {
+						var nx = x + dx, ny = y + dy, next = ny * cols + nx;
+
+						if (nx >= 0 && ny >= 0 && nx < cols && ny < lines && grid[next] && group[next] < 0) {
+							group[next] = boxes.length;
+							stack.push(next);
+						}
+					}
+				}
+			}
+
+			boxes.push(box);
+		}
+
+		var all = boxes.reduce(function (sum, b) {
+			return { left: Math.min(sum.left, b.left), top: Math.min(sum.top, b.top), right: Math.max(sum.right, b.right), bottom: Math.max(sum.bottom, b.bottom) };
+		}, { left: cols, top: lines, right: 0, bottom: 0 });
+		var SMALL = 7, NEAR = 3;
+		var marks = boxes.map(function (b) {
+			var small = b.right - b.left < SMALL && b.bottom - b.top < SMALL;
+			var side = b.left - all.left < NEAR || all.right - b.right < NEAR;
+			var end = b.top - all.top < NEAR || all.bottom - b.bottom < NEAR;
+			return small && side && end;
+		});
+
+		for (var i = 0; i < ink.length; i++) {
+			if (ink[i] && marks[group[Math.floor(Math.floor(i / width) / cell) * cols + Math.floor((i % width) / cell)]]) {
+				ink[i] = 0;
+			}
+		}
+	}
+
+	async function labels(file, cutMarks) {
 		var pdf = await open(file);
 		var pages = [];
 
@@ -169,7 +237,7 @@
 			context.fillRect(0, 0, canvas.width, canvas.height);
 			// Print intent with form fields drawn in: eBay's postage label keeps stamp and address in annotations.
 			await page.render({ canvasContext: context, viewport: viewport, intent: 'print', annotationMode: pdfjsLib.AnnotationMode.ENABLE_STORAGE }).promise;
-			var label = crop(canvas, Math.round(DPI / 25.4 * 12));
+			var label = crop(canvas, Math.round(DPI / 25.4 * 12), cutMarks);
 
 			if (label) {
 				pages.push(label);
@@ -242,8 +310,9 @@
 		});
 	}
 
-	function run(source, caption) {
-		return labels(source).then(function (pages) {
+	// options.cutMarks: the PDF has corner crosses to cut along (the Post shop's stamp); they are left out of the label.
+	function run(source, caption, options) {
+		return labels(source, !!(options && options.cutMarks)).then(function (pages) {
 			if (!pages.length) {
 				window.alert(taxmodLabel62.empty);
 				return;
@@ -289,7 +358,7 @@
 			}
 
 			button.disabled = true;
-			run(file, button.getAttribute('data-taxmod-label62-pick')).finally(function () {
+			run(file, button.getAttribute('data-taxmod-label62-pick'), { cutMarks: button.hasAttribute('data-taxmod-label62-cut-marks') }).finally(function () {
 				button.disabled = false;
 			});
 		});
