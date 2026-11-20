@@ -3,7 +3,7 @@
 /**
  * Plugin Name:       Taxmod Label
  * Description:       Labels for the Taxonomy Modeller: label editor with live drawing, QR, DataMatrix, Code128, EAN-13, Code39, print dialog and abilities.
- * Version: 0.0.30
+ * Version: 0.0.31
  * Requires at least: 6.9
  * Requires PHP:      8.2
  * Author:            Stefan Fambach (SteFam), Claude (Anthropic AI)
@@ -18,7 +18,7 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
-define('TAXMOD_LABEL_VERSION', '0.0.30');
+define('TAXMOD_LABEL_VERSION', '0.0.31');
 
 $taxmodLabelAutoloader = __DIR__ . '/vendor/autoload.php';
 
