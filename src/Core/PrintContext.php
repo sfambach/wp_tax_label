@@ -23,4 +23,17 @@ final class PrintContext
         public readonly int $workplace = 0,
     ) {
     }
+
+    /**
+     * From what a module asks with (D-1296: the stock does not know this class): `nodes`, `forms`, `groups` (lists of node ids,
+     * nearest first) and `place_type`; the workplace is the catalog's own.
+     *
+     * @param array<string, mixed> $asked
+     */
+    public static function fromArray(array $asked, int $workplace): self
+    {
+        $ids = static fn (string $key): array => array_values(array_filter(array_map('intval', is_array($asked[$key] ?? null) ? $asked[$key] : [])));
+
+        return new self($ids('nodes'), $ids('forms'), $ids('groups'), (int) ($asked['place_type'] ?? 0), $workplace);
+    }
 }

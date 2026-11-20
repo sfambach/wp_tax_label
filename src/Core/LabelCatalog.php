@@ -26,7 +26,12 @@ final class LabelCatalog
     /**
      * @param array<int, array<string, mixed>> $printers D-1192: printer id ⇒ what the label dialog takes, with `allows` (label ids)
      */
-    public function __construct(private readonly array $templates = [], private readonly array $printers = [])
+    public function __construct(
+        private readonly array $templates = [],
+        private readonly array $printers = [],
+        private readonly ?PrintRules $rules = null,
+        private readonly int $workplace = 0,
+    )
     {
     }
 
@@ -208,6 +213,44 @@ final class LabelCatalog
         if (isset($printers[$place->defaultPrinter])) {
             $printers = [$place->defaultPrinter => $printers[$place->defaultPrinter]] + $printers;
         }
+
+        return $this->onPrinters($printers, $place->id);
+    }
+
+    /** D-1519: the print rules this catalog answers with — read once, asked for every record. */
+    public function withRules(PrintRules $rules): self
+    {
+        return new self($this->templates, $this->printers, $rules, $this->workplace);
+    }
+
+    /**
+     * D-1519: the first print rule that holds for what is about to be printed — and can print here: its label known, its printer
+     * (where it names one) among this catalog's printers, with a roll that allows the label. Null: no rule, the way of today.
+     *
+     * @param array<string, mixed> $asked see {@see PrintContext::fromArray()}
+     * @return array{id: int, name: string, label: int, copies: ?int, printer: int}|null
+     */
+    public function ruleFor(array $asked): ?array
+    {
+        $rule = $this->rules?->first(PrintContext::fromArray($asked, $this->workplace), fn (PrintRule $r): bool => isset($this->templates[$r->label])
+            && ($r->printer === 0 || in_array($r->label, $this->printers[$r->printer]['allows'] ?? [], true)));
+
+        return $rule === null ? null : ['id' => $rule->id, 'name' => $rule->name, 'label' => $rule->label, 'copies' => $rule->copies, 'printer' => $rule->printer];
+    }
+
+    /** D-1519: the same labels with `$printer` first — the printer a rule names; unchanged where it is not one of these. */
+    public function preferring(int $printer): self
+    {
+        if (! isset($this->printers[$printer])) {
+            return $this;
+        }
+
+        return $this->onPrinters([$printer => $this->printers[$printer]] + $this->printers, $this->workplace);
+    }
+
+    /** Each label starts on the first of `$printers` whose roll allows it. */
+    private function onPrinters(array $printers, int $workplace): self
+    {
         $templates = [];
         foreach ($this->templates as $id => $template) {
             unset($template['printer']);
@@ -220,7 +263,7 @@ final class LabelCatalog
             $templates[$id] = $template;
         }
 
-        return new self($templates, $printers);
+        return new self($templates, $printers, $this->rules, $workplace);
     }
 
     /** @return array<int, array<string, mixed>> D-1192: the printers, for the list under Druck › Drucker */

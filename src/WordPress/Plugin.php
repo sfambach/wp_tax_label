@@ -4,6 +4,7 @@ namespace TaxmodLabel\WordPress;
 
 use TaxmodLabel\WordPress\Admin\LabelsPage;
 use TaxmodLabel\WordPress\Admin\PrintersPage;
+use TaxmodLabel\WordPress\Admin\RulesPage;
 use TaxmodLabel\WordPress\Admin\WorkplacesPage;
 
 /**
@@ -18,7 +19,7 @@ use TaxmodLabel\WordPress\Admin\WorkplacesPage;
  *   C -->|yes| S["script taxmod-label62 (D-1507)"]
  *   C -->|yes| A["abilities taxmod-label/…"]
  *   C -->|yes| R["REST taxmod-label/v1"]
- *   C -->|yes| L["taxmod_logistics_pages: Allgemein, Etiketten, Drucker, Arbeitsplätze, Druckmedium (area print)"]
+ *   C -->|yes| L["taxmod_logistics_pages: Allgemein, Etiketten, Druckregeln, Drucker, Arbeitsplätze, Druckmedium (area print)"]
  *   C -->|yes| U["taxmod_user_settings: Arbeitsplatz (D-1502)"]
  * ```
  *
@@ -26,7 +27,7 @@ use TaxmodLabel\WordPress\Admin\WorkplacesPage;
  */
 final class Plugin
 {
-    public const VERSION = '0.0.33';
+    public const VERSION = '0.0.34';
 
     /** D-1295: labelValues and queuePrint came with 0.2.61; DialogNumber since 0.2.133 (D-1431); button/iconButton/listBar since 0.2.172 (D-1500). */
     public const MIN_MODELLER = '0.2.180';
@@ -83,6 +84,7 @@ final class Plugin
             LabelPrint::boot();
             PrintersPage::boot();
             WorkplacesPage::boot();
+            RulesPage::boot();
         }
     }
 
@@ -93,6 +95,8 @@ final class Plugin
     public static function pages(array $pages): array
     {
         $pages[] = ['slug' => LabelsPage::SLUG, 'label' => __('Etiketten', 'taxmod-label'), 'area' => 'print', 'position' => 20, 'capability' => \Taxmod\WordPress\Plugin::CAPABILITY, 'render' => static fn (): string => (new LabelsPage())->render()];
+        // D-1519 R4: Einstellungen › Druck › Druckregeln, after the labels they choose from.
+        $pages[] = ['slug' => RulesPage::SLUG, 'label' => __('Druckregeln', 'taxmod-label'), 'area' => 'print', 'position' => 30, 'capability' => \Taxmod\WordPress\Plugin::CAPABILITY, 'render' => static fn (): string => (new RulesPage())->render()];
         $pages[] = ['slug' => PrintersPage::SLUG, 'label' => __('Drucker', 'taxmod-label'), 'area' => 'print', 'position' => 40, 'capability' => \Taxmod\WordPress\Plugin::CAPABILITY, 'render' => static fn (): string => (new PrintersPage())->render()];
         $pages[] = ['slug' => WorkplacesPage::SLUG, 'label' => __('Arbeitsplätze', 'taxmod-label'), 'area' => 'masterdata', 'capability' => \Taxmod\WordPress\Plugin::CAPABILITY, 'render' => static fn (): string => (new WorkplacesPage())->render()];
         $pages[] = ['slug' => PrintersPage::MEDIA_SLUG, 'label' => __('Druckmedium', 'taxmod-label'), 'area' => 'print', 'position' => 50, 'capability' => \Taxmod\WordPress\Plugin::CAPABILITY, 'render' => static fn (): string => (new PrintersPage())->media()];

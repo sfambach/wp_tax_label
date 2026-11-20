@@ -27,10 +27,47 @@ final class PrintRules
         $this->rules = $rules;
     }
 
-    public function first(PrintContext $context): ?PrintRule
+    /** The rules as the model holds them: one record of «Druckregeln» each; a record without a label is no rule. */
+    public static function fromTable(Structure $s, Table $rules): self
+    {
+        $int = static fn (int $id, string $field): int => $s->hasField($field) ? (int) $rules->first($id, $s->field($field)) : 0;
+        $out = [];
+        foreach ($rules->ids() as $id) {
+            $copies = $s->hasField('rule_copies') ? trim((string) $rules->first($id, $s->field('rule_copies'))) : '';
+            $out[]  = new PrintRule(
+                $id,
+                trim((string) $rules->first($id, $s->field('label'))),
+                $int($id, 'rule_label'),
+                $int($id, 'position'),
+                $int($id, 'rule_for'),
+                $int($id, 'rule_form'),
+                $int($id, 'rule_group'),
+                $int($id, 'rule_place_type'),
+                $int($id, 'rule_workplace'),
+                $copies === '' ? null : max(1, (int) $copies),
+                $int($id, 'rule_printer'),
+            );
+        }
+
+        return new self($out);
+    }
+
+    public function isEmpty(): bool
+    {
+        return $this->rules === [];
+    }
+
+    /** @return list<PrintRule> in their order */
+    public function all(): array
+    {
+        return $this->rules;
+    }
+
+    /** @param (\Closure(PrintRule): bool)|null $usable what else a rule needs here, e.g. its printer at the workplace */
+    public function first(PrintContext $context, ?\Closure $usable = null): ?PrintRule
     {
         foreach ($this->rules as $rule) {
-            if ($rule->holdsFor($context)) {
+            if ($rule->holdsFor($context) && ($usable === null || $usable($rule))) {
                 return $rule;
             }
         }

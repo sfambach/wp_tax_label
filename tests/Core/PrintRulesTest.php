@@ -8,7 +8,7 @@ use TaxmodLabel\Core\PrintContext;
 use TaxmodLabel\Core\PrintRule;
 use TaxmodLabel\Core\PrintRules;
 
-/** Druckregeln (draft, D-1519 reserved): the first rule that holds decides, in the order of their position. */
+/** Druckregeln (D-1519): the first rule that holds decides, in the order of their position. */
 final class PrintRulesTest extends TestCase
 {
     private const MATERIAL = 10, LOT = 11, PLACE = 12, SMD = 20, SMD0603 = 21, THT = 22, RESISTORS = 30, PARTS = 31;
