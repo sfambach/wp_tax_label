@@ -8,6 +8,7 @@ use TaxmodLabel\Core\LabelCatalog;
 use TaxmodLabel\Core\LabelContents;
 use TaxmodLabel\Core\Structure;
 use TaxmodLabel\Core\Table;
+use TaxmodLabel\Core\Workplace;
 
 /** D-1153, D-1159: labels as records, with the printer whose roll allows them (moved from the stock with D-1296). */
 final class CatalogTest extends TestCase
@@ -109,7 +110,50 @@ final class CatalogTest extends TestCase
         self::assertFalse(LabelContents::named('[{"field":"code"}]'));
     }
 
-    private function withPrinters(): LabelCatalog
+    #[Test]
+    public function at_a_workplace_the_dialog_offers_only_its_printers_and_without_one_all(): void
+    {
+        $labels = $this->withPrinters(true);
+
+        // D-1502: no workplace, all printers as before.
+        self::assertSame($labels, $labels->at(null));
+        self::assertSame([70, 71, 74], array_keys($labels->dialog(2, [])['printers']));
+
+        $place = $labels->at(new Workplace(500, 'Werkbank', [71]));
+        self::assertSame([71], array_keys($place->dialog(2, [])['printers']));
+        self::assertSame([71], array_keys($place->printerList()));
+        self::assertSame('QL-810W_take', $place->get(2)['printer']['queue']);
+        self::assertArrayNotHasKey('printer', $place->get(1), 'no printer of the place allows it: none is carried');
+        self::assertSame('Phomemo_M220L', $labels->get(1)['printer']['queue'], 'the full catalog stays as it was');
+    }
+
+    #[Test]
+    public function at_a_workplace_a_label_starts_on_its_default_printer_where_that_ones_roll_allows_it(): void
+    {
+        $labels = $this->withPrinters(true);
+
+        self::assertSame('QL-810W_take', $labels->get(2)['printer']['queue'], 'by name without a workplace');
+        $place = $labels->at(new Workplace(500, 'Werkbank', [70, 71, 74], 74));
+        self::assertSame('Zweiter_QL', $place->get(2)['printer']['queue']);
+        self::assertSame([74, 70, 71], array_keys($place->printerList()), 'the default printer first');
+        self::assertSame('Phomemo_M220L', $place->get(1)['printer']['queue'], 'the default cannot print it: the next that can');
+        self::assertSame([70, 71], array_keys($labels->at(new Workplace(501, 'Ohne', [70, 71, 99], 99))->printerList()), 'a printer that is gone is left out');
+    }
+
+    #[Test]
+    public function a_workplace_is_read_from_its_record_and_a_deleted_one_is_none(): void
+    {
+        $s      = Structure::fromArray(['nodes' => ['label_template' => 23, 'label_workplace' => 26], 'fields' => ['label' => 1, 'workplace_printers' => 450, 'workplace_default_printer' => 451, 'workplace_location' => 452]]);
+        $places = new Table([500 => [1 => [' Werkbank '], 450 => ['71', '70'], 451 => ['70'], 452 => ['3000']]]);
+
+        $place = Workplace::from($s, $places, 500);
+        self::assertNotNull($place);
+        self::assertSame(['Werkbank', [71, 70], 70, 3000], [$place->name, $place->printers, $place->defaultPrinter, $place->location]);
+        self::assertNull(Workplace::from($s, $places, 501), 'a deleted record is no workplace, without an error');
+        self::assertNull(Workplace::from($s, $places, 0));
+    }
+
+    private function withPrinters(bool $second = false): LabelCatalog
     {
         $s      = $this->structure();
         $label  = $s->field('label');
@@ -125,7 +169,7 @@ final class CatalogTest extends TestCase
             // D-1231: switched off, so not offered.
             73 => [$label => ['B aus'], 430 => ['Off'], 438 => ['81'], 442 => ['0']],
             73 => [$label => ['Z ohne Rolle'], 430 => ['QL-1100']],
-        ]);
+        ] + ($second ? [74 => [$label => ['Zweiter QL'], 430 => ['Zweiter_QL'], 438 => ['81']]] : []));
 
         return LabelCatalog::from($s, new Table([1 => $row('40×30', 40, 30, 40), 2 => $row('62×30', 62, 30, 62), 3 => $row('102×62', 102, 62, 102)]), [], [1 => 40, 2 => 40, 3 => 40], $printers, $rolls, new Table([90 => [$s->field('money_amount') => ['20']]]));
     }

@@ -17,8 +17,8 @@ final class Structure
     /** D-1153, D-1159: the labels stand in «Etiketten» and its categories. */
     public const NODES = ['label_template'];
 
-    /** D-1190, D-1192: the printers and the rolls they hold. */
-    private const OPTIONAL_NODES = ['label_printer', 'label_roll'];
+    /** D-1190, D-1192: the printers and the rolls they hold; D-1502: the workplaces that name printers. */
+    private const OPTIONAL_NODES = ['label_printer', 'label_roll', 'label_workplace'];
 
     /** `label` is the name of a record — read here, owned by the modeller's shipped name field. */
     public const FIELDS = ['label', 'template_key', 'template_width', 'template_height', 'template_layout'];
@@ -35,6 +35,8 @@ final class Structure
         'printer_media', 'medium_kind',
         // D-1333: the printer's pause is a unit value — its part's amount is the seconds. Without these keys the pause was dropped.
         'printer_pause', 'money_amount',
+        // D-1502: a workplace's printers, the one its dialog starts with, its place in the stock.
+        'workplace_printers', 'workplace_default_printer', 'workplace_location',
     ];
 
     /**

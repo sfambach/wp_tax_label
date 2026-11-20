@@ -11,6 +11,7 @@ use TaxmodLabel\Core\LabelError;
 use TaxmodLabel\Core\PrinterMedia;
 use TaxmodLabel\Core\Structure;
 use TaxmodLabel\Core\Table;
+use TaxmodLabel\Core\Workplace;
 
 /**
  * The labels, printers and rolls as the model holds them — read and written only through the modeller's door (D-1186, D-1292).
@@ -44,7 +45,7 @@ final class LabelService
             return $catalog;
         }
         try {
-            return (new self())->catalog();
+            return (new self())->dialogCatalog();
         } catch (LabelError | DomainError) {
             // A model without the labels node (a fresh or foreign database): no labels, the page goes on (Prüftor 2026-11-20).
             return $catalog;
@@ -121,6 +122,43 @@ final class LabelService
             $this->rollTable(),
             $parts === [] ? null : new Table($this->door->valuesOf($parts)),
         );
+    }
+
+    /** D-1502: user meta holding only the record id of the person's workplace. */
+    public const WORKPLACE_META = 'taxmod_label_workplace';
+
+    /** D-1502: the workplace the current person chose; null without one, or where the record is gone or no workplace. */
+    public function workplace(?int $userId = null): ?Workplace
+    {
+        if (! $this->structure()->hasNode('label_workplace')) {
+            return null;
+        }
+        $id = (int) get_user_meta($userId ?? get_current_user_id(), self::WORKPLACE_META, true);
+
+        return $id > 0 ? $this->workplaceRecord($id) : null;
+    }
+
+    /** D-1502: one record of «Arbeitsplätze», for the list of workplaces. */
+    public function workplaceRecord(int $id): ?Workplace
+    {
+        return $this->structure()->hasNode('label_workplace') ? Workplace::from($this->structure(), $this->table('label_workplace'), $id) : null;
+    }
+
+    /** D-1502: a new workplace with its name, one act (undo per act, D-1410); its printers are set in the record editor. */
+    public function createWorkplace(string $name): int
+    {
+        $answer = $this->door->write([
+            ['op' => 'create_record', 'ref' => 'platz', 'node' => (string) $this->structure()->node('label_workplace')],
+            ['op' => 'set_values', 'record' => '@platz', 'values' => [(string) $this->structure()->field('label') => $name]],
+        ]);
+
+        return (int) ($answer['refs']['platz'] ?? 0);
+    }
+
+    /** D-1502: the labels as a print dialog offers them — only the printers of the person's workplace; without one, all. */
+    public function dialogCatalog(): LabelCatalog
+    {
+        return $this->catalog()->at($this->workplace());
     }
 
     public function table(string $node): Table
