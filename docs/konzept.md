@@ -229,6 +229,16 @@ flowchart LR
 
 Die Maße 62 mm Band, 58 mm Druckbreite, 100 mm Seite, 300 dpi und 12 mm Lücke prüft `tests/Core/Label62ScriptTest.php`.
 
+**Ein Baustein zum Wählen und Lesen (D-1511).** Gleiche Funktion, gleicher Baustein: Wählen und Lesen eines Porto-PDF gibt es nur hier. Im Browser liefert `taxmodLabel62.pick()` die gewählte Datei und `taxmodLabel62.lines(datei)` den gedruckten Text als Zeilen von oben nach unten. Auf dem Server liest `PostageText` (vorher `LabelText` im eBay-Modul) die Zeilen, für andere Module über den Filter `taxmod_label_pdf_text`. Was die Zeilen bedeuten (Empfänger, Preis, Sendungsnummer), entscheidet das Modul, das sie braucht. Kein anderes Modul öffnet ein PDF selbst; das prüft der Wächter `standard-blocks-check` (Regel 3).
+
+```mermaid
+flowchart LR
+  P["pick() · Datei"] --> L["lines() · Browser"]
+  M["PDF vom Server (Mail, DHL-Link)"] --> S["PostageText · Filter"]
+  L --> X["Versand: Felder füllen"]
+  S --> Y["eBay: Etikett zur Sendung"]
+```
+
 ## 8 · Stufe 2 — Felder füllen (offen)
 
 Heute: ein Element liest ein Feld des Satzes nach Namen (D-1160), «A|B» nimmt das erste gefüllte (D-1217). Feste Felder wie `code`, `title`, `subtitle`, `inhalt` setzt der jeweilige Aufrufer im Code.

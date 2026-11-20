@@ -30,6 +30,17 @@ final class Label62ScriptTest extends TestCase
         self::assertStringNotContainsString('print()', str_replace('frame.contentWindow.print()', '', $script), 'Printing happens only in print(), after a click.');
     }
 
+    public function testOneBuildingBlockChoosesAndReadsThePdf(): void
+    {
+        $script = self::script();
+
+        foreach (['taxmodLabel62.pick = pick;', 'taxmodLabel62.lines = lines;', 'getTextContent()'] as $line) {
+            self::assertStringContainsString($line, $script);
+        }
+
+        self::assertStringContainsString("TEXT_FILTER = 'taxmod_label_pdf_text'", (string) file_get_contents(dirname(__DIR__, 2) . '/src/WordPress/Label62Script.php'));
+    }
+
     public function testPdfJsShipsWithItsFixedVersion(): void
     {
         $root = dirname(__DIR__, 2);

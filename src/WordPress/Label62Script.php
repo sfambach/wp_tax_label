@@ -2,8 +2,11 @@
 
 namespace TaxmodLabel\WordPress;
 
+use TaxmodLabel\Core\Pdf\PostageText;
+
 /**
- * D-1507: the one place the 62 mm postage print (pdf.js, crop, print in the browser) lives. Other modules attach it by HANDLE only;
+ * D-1507: the one place the 62 mm postage print (pdf.js, crop, print in the browser) lives; D-1511: and the reading of a postage PDF's
+ * text, in the browser (taxmodLabel62.lines) and on the server (TEXT_FILTER). Other modules attach it by HANDLE only;
  * when this module is missing the handle is not registered and they leave their button out.
  *
  * @see docs/konzept.md §7
@@ -14,12 +17,25 @@ final class Label62Script
 
     public const PDFJS_HANDLE = 'taxmod-pdfjs';
 
+    /** D-1511: other modules read a postage PDF's text lines here — apply_filters(TEXT_FILTER, [], $pdfBytes) → list<string>. */
+    public const TEXT_FILTER = 'taxmod_label_pdf_text';
+
     /** Shipped in assets/pdfjs, never fetched from a CDN at runtime. */
     public const PDFJS_VERSION = '3.11.174';
 
     public static function boot(): void
     {
         add_action('init', self::register(...));
+        add_filter(self::TEXT_FILTER, self::text(...), 10, 2);
+    }
+
+    /**
+     * @param mixed $lines what an earlier filter answered; `mixed`: a filter carries anything
+     * @return list<string>
+     */
+    public static function text(mixed $lines, mixed $pdf = ''): array
+    {
+        return is_string($pdf) && $pdf !== '' ? PostageText::of($pdf) : (is_array($lines) ? array_values(array_map('strval', $lines)) : []);
     }
 
     public static function register(): void
