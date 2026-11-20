@@ -101,7 +101,7 @@ final class PrintersPage
     {
         return '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '" style="display:inline">'
             . '<input type="hidden" name="action" value="' . esc_attr(self::ACTION) . '">' . wp_nonce_field(self::ACTION, '_wpnonce', true, false)
-            . $fields . '<button type="submit" class="button" name="do" value="' . esc_attr($doing) . '">' . esc_html($button) . '</button></form>';
+            . $fields . ListPage::button($button, '', false, 'do', $doing) . '</form>';
     }
 
     /** D-1439: the fixed formats with their test print, moved here from the modeller. */
@@ -116,6 +116,7 @@ final class PrintersPage
 
         return '<h2>' . esc_html__('Feste Formate', 'taxmod-label') . '</h2>'
             . '<p class="description">' . esc_html__('Der Testdruck geht mit einem Beispiel an den Druckdienst.', 'taxmod-label') . '</p>'
+            . ListPage::listBar(sprintf(/* translators: %d: number of formats */ _n('%d Format', '%d Formate', count(LabelFormat::shipped()), 'taxmod-label'), count(LabelFormat::shipped())))
             . ListPage::table([[__('Format', 'taxmod-label'), ''], [__('Größe', 'taxmod-label'), '9em'], ['', '8em']], $body);
     }
 
@@ -161,7 +162,7 @@ final class PrintersPage
                 . '<td>' . esc_html(($printer['dpi'] ?? 0) > 0 ? $printer['dpi'] . ' dpi' : '203 dpi*') . '</td>'
                 . '<td>' . esc_html($printer['roll_name'] ?? '—') . '</td>'
                 . '<td>' . esc_html($allowed($printer)) . '</td>'
-                . '<td style="text-align:right;white-space:nowrap">' . $this->changeRollDialog($id, $name, $rolls, $service) . ' <a class="button" href="' . esc_url(self::url(['satz' => $id])) . '">' . esc_html__('Öffnen', 'taxmod-label') . '</a></td></tr>';
+                . '<td style="text-align:right;white-space:nowrap">' . $this->changeRollDialog($id, $name, $rolls, $service) . ' ' . ListPage::iconButton('visibility', __('Öffnen', 'taxmod-label'), self::url(['satz' => $id])) . '</td></tr>';
         }
         $none = self::none(...);
         $help = '<details class="taxmod-help" style="margin:0 0 1em"><summary><strong>' . esc_html__('Neues Etikett einrichten', 'taxmod-label') . '</strong></summary><ol>'
@@ -174,6 +175,7 @@ final class PrintersPage
         return (isset($_GET['gewechselt']) ? '<div class="notice notice-success inline"><p>' . esc_html__('Rolle gewechselt: der Drucker druckt jetzt die Etiketten der neuen Rolle.', 'taxmod-label') . '</p></div>' : '')
             . (isset($_GET['testdruck']) ? '<div class="notice notice-success inline"><p>' . esc_html(sprintf(/* translators: %d: job number */ __('Testdruck wartet als Auftrag %d auf den Druckdienst.', 'taxmod-label'), absint($_GET['testdruck']))) . '</p></div>' : '')
             . $help
+            . ListPage::listBar(sprintf(/* translators: %d: number of printers */ _n('%d Drucker', '%d Drucker', count($printers), 'taxmod-label'), count($printers)))
             . ListPage::table([[__('Drucker', 'taxmod-label'), '14em'], [__('Aktiv', 'taxmod-label'), '5em'], [__('Warteschlange', 'taxmod-label'), '12em'], [__('Auflösung', 'taxmod-label'), '7em'], [__('Eingelegte Rolle', 'taxmod-label'), '14em'], [__('Erlaubte Etiketten', 'taxmod-label'), '']], $body === '' ? $none(6) : $body)
             . '<p class="description">' . esc_html__('* ohne Angabe am Drucker prüft der Editor die Codes für 203 dpi.', 'taxmod-label') . '</p>'
             . $this->testPrints();
@@ -200,11 +202,12 @@ final class PrintersPage
         foreach ($rolls as $id => $name) {
             $rollBody .= '<tr><th scope="row" class="check-column"></th><td><a href="' . esc_url(self::mediaUrl(['satz' => $id])) . '"><strong>' . esc_html($name) . '</strong></a></td>'
                 . '<td>' . esc_html($kinds[$id] ?? '—') . '</td><td>' . esc_html(self::printerNames($media, $id, $printers)) . '</td>'
-                . '<td style="text-align:right"><a class="button" href="' . esc_url(self::mediaUrl(['satz' => $id])) . '">' . esc_html__('Öffnen', 'taxmod-label') . '</a></td></tr>';
+                . '<td style="text-align:right">' . ListPage::iconButton('visibility', __('Öffnen', 'taxmod-label'), self::mediaUrl(['satz' => $id])) . '</td></tr>';
         }
 
         return '<h2>' . esc_html__('Druckmedium', 'taxmod-label') . '</h2>'
             . '<p class="description">' . esc_html__('Ein Druckmedium nennt seine Art, seine Breite und die Etiketten, die darauf gedruckt werden dürfen. Welcher Drucker es kann, steht am Drucker unter «Druckmedien».', 'taxmod-label') . '</p>'
+            . ListPage::listBar(sprintf(/* translators: %d: number of media */ _n('%d Druckmedium', '%d Druckmedien', count($rolls), 'taxmod-label'), count($rolls)))
             . ListPage::table([[__('Druckmedium', 'taxmod-label'), ''], [__('Art', 'taxmod-label'), '12em'], [__('Drucker', 'taxmod-label'), '']], $rollBody === '' ? self::none(3) : $rollBody);
     }
 
@@ -258,10 +261,9 @@ final class PrintersPage
             $actions = $this->changeRollDialog($record, $name, $rolls, $service);
         }
 
-        return '<p><a href="' . esc_url($here()) . '">' . esc_html($isRoll ? __('← Druckmedium', 'taxmod-label') : __('← Drucker', 'taxmod-label')) . '</a></p>'
-            . '<h2>' . esc_html($name) . '</h2>'
-            // D-1308: the page's buttons stand in the one toolbar, top left — not on a line of their own on the right (Stefan, 2026-11-18).
-            . ListPage::toolbar([$actions])
+        return '<h2>' . esc_html($name) . '</h2>'
+            // D-1308/D-1316: back first, then the page's buttons, in the one toolbar top left (Stefan, 2026-11-18).
+            . ListPage::toolbar([ListPage::back($here(), $isRoll ? __('Druckmedium', 'taxmod-label') : __('Drucker', 'taxmod-label')), $actions])
             . ListPage::beside($form, '<table class="widefat striped">' . $facts . '</table>');
     }
 
