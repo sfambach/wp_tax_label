@@ -279,7 +279,7 @@ final class LabelButton
     /** «62 × 30 mm» */
     public static function size(LabelFormat $format): string
     {
-        $mm = static fn (float $v): string => rtrim(rtrim(number_format($v, 1, ',', ''), '0'), ',');
+        $mm = static fn (float $v): string => ListPage::number($v, 1);
 
         return $mm($format->widthMm) . ' × ' . $mm($format->heightMm) . ' mm';
     }

@@ -114,12 +114,12 @@ final class LabelsPage
                 . '<td>' . esc_html($label['category'] === '' ? '—' : $label['category']) . '</td>'
                 . '<td><a href="' . esc_url($link) . '"><strong>' . esc_html($label['name'] ?: '#' . $id) . '</strong></a>'
                 . ($label['complete'] ? '' : ' <span class="description">' . esc_html__('(unvollständig)', 'taxmod-label') . '</span>') . '</td>'
-                . '<td>' . esc_html($label['width'] > 0 ? $label['width'] . ' × ' . $label['height'] . ' mm' . ($label['key'] === '' ? '' : ' · ' . $label['key']) : '—') . '</td>'
+                . '<td>' . esc_html($label['width'] > 0 ? ListPage::number($label['width']) . ' × ' . ListPage::number($label['height']) . ' mm' . ($label['key'] === '' ? '' : ' · ' . $label['key']) : '—') . '</td>'
                 . '<td>' . esc_html(implode(', ', $used) ?: '—') . '</td>'
                 . '<td style="text-align:right;white-space:nowrap">'
                 . ListPage::iconLink(ListPage::ICON_COPY, __('Kopieren', 'taxmod-label'), self::url(['kopie' => $id])) . ' '
                 . ($used === [] ? $this->removeDialog($id, (string) $label['name']) . ' ' : '')
-                . '<a class="button" href="' . esc_url($link) . '">' . esc_html__('Öffnen', 'taxmod-label') . '</a></td></tr>';
+                . ListPage::iconButton('visibility', __('Öffnen', 'taxmod-label'), $link) . '</td></tr>';
         }
         if ($body === '') {
             $body = '<tr class="no-items"><td class="colspanchange" colspan="6">' . esc_html__('Noch keine Etiketten.', 'taxmod-label') . '</td></tr>';
@@ -130,10 +130,13 @@ final class LabelsPage
             $new .= '<option value="' . esc_attr((string) $node) . '">' . esc_html($name) . '</option>';
         }
 
-        return '<form method="get" action="' . esc_url(admin_url('admin.php')) . '" style="text-align:right;margin-bottom:12px">'
+        // D-1500: «Neues Etikett» stands in the list's one bar, not in a row of its own above it.
+        $create = '<div class="alignleft actions"><form method="get" action="' . esc_url(admin_url('admin.php')) . '">'
             . '<input type="hidden" name="page" value="taxmod-lager-modul"><input type="hidden" name="module" value="' . esc_attr(self::SLUG) . '">'
             . '<label>' . esc_html__('Kategorie', 'taxmod-label') . ' <select name="neu">' . $new . '</select></label> '
-            . '<button type="submit" class="button button-primary">' . esc_html__('Neues Etikett', 'taxmod-label') . '</button></form>'
+            . ListPage::button(__('Neues Etikett', 'taxmod-label'), '', true) . '</form></div>';
+
+        return ListPage::listBar(sprintf(/* translators: %d: number of labels */ _n('%d Etikett', '%d Etiketten', count($labels), 'taxmod-label'), count($labels)), $create)
             . ListPage::table([[__('Kategorie', 'taxmod-label'), '14em'], [__('Etikett', 'taxmod-label'), ''], [__('Größe', 'taxmod-label'), '14em'], [__('Benutzt von', 'taxmod-label'), '']], $body);
     }
 
