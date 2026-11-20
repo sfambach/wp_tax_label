@@ -99,7 +99,7 @@ final class LabelButton
 
         // His wish 2026-11-07: «vorschaubild im druckdialog nach rechts zumindest für desktop» — options left, preview right; on a
         // narrow screen the preview stays below (assets/admin.css).
-        $body = '<span class="taxmod-label-dialog"><span class="taxmod-label-dialog-options">' . ($chooser !== null ? $chooser['html'] : ($filled === null
+        $body = self::panel(($chooser !== null ? $chooser['html'] : ($filled === null
                 ? '<label style="display:block;margin-bottom:.5em"><span style="display:block;font-weight:600">' . esc_html__('Format', 'taxmod-label') . '</span>'
                     . SelectMarkup::of('format', $options, $default, false) . '</label>'
                 : '<span style="display:block;margin-bottom:.5em"><span style="display:block;font-weight:600">' . esc_html__('Vorlage', 'taxmod-label') . '</span>'
@@ -108,8 +108,8 @@ final class LabelButton
             . '<label style="display:block;margin-bottom:.5em"><span style="display:block;font-weight:600">' . esc_html__('Anzahl', 'taxmod-label') . '</span>'
             . \Taxmod\WordPress\Draw\DialogNumber::input('copies', self::copies($copies), 1, self::MAX_COPIES) . '</label>'
             . '<span style="display:block">' . esc_html($label->code . ' · ' . $label->title . ($label->subtitle === '' ? '' : ' · ' . $label->subtitle)) . '</span>'
-            . ($service ? '' : '<span class="description" style="display:block;margin-top:.5em">' . esc_html__('No print service set up: the label opens as PDF to print from the browser.', 'taxmod-label') . '</span>')
-            . '</span>' . self::previewBox() . '</span>';
+            . ($service ? '' : '<span class="description" style="display:block;margin-top:.5em">' . esc_html__('No print service set up: the label opens as PDF to print from the browser.', 'taxmod-label') . '</span>'),
+            self::previewBox());
 
         $foot = ($service ? '<button type="submit" class="button button-primary" name="how" value="service">' . esc_html__('Print', 'taxmod-label') . '</button>' : '')
             . '<button type="submit" class="button' . ($service ? '' : ' button-primary') . '" name="how" value="pdf" formtarget="_blank">' . esc_html__('Open as PDF', 'taxmod-label') . '</button>';
@@ -467,6 +467,66 @@ final class LabelButton
     }
 
     /**
+     * The dialog's two halves — the choices left, the preview right (his wish 2026-11-07), below on a narrow screen.
+     *
+     * @param string $options escaped HTML
+     * @param string $preview escaped HTML, from {@see self::previewBox()}
+     */
+    private static function panel(string $options, string $preview): string
+    {
+        return '<span class="taxmod-label-dialog"><span class="taxmod-label-dialog-options">' . $options . '</span>' . $preview . '</span>';
+    }
+
+    /**
+     * D-1192: the printer of this dialog — the first one whose loaded roll allows the label chosen; «Ohne Drucker» opens the
+     * PDF as before. D-1517: without a label (a postage picture fits any roll) every printer is offered, the first chosen —
+     * the workplace's default printer stands first (D-1502).
+     *
+     * @param array<int, array<string, mixed>> $printers id ⇒ printer, with `allows` (label ids) where a label is chosen
+     */
+    private static function printerField(array $printers, ?int $label = null): string
+    {
+        $options = '<option value="" data-allows="*">' . esc_html__('Ohne Drucker (wie bisher)', 'taxmod-label') . '</option>';
+        $first   = true;
+        foreach ($printers as $id => $printer) {
+            $allows  = $label === null ? [] : array_map('intval', (array) ($printer['allows'] ?? []));
+            $pick    = $first && ($label === null || in_array($label, $allows, true));
+            $first   = $first && ! $pick;
+            $options .= '<option value="' . (int) $id . '" data-allows="' . esc_attr($label === null ? '*' : implode(' ', $allows)) . '"' . ($pick ? ' selected' : '') . '>'
+                . esc_html(trim((string) ($printer['name'] ?? '') . ' · ' . (string) ($printer['roll_name'] ?? ''), ' ·')) . '</option>';
+        }
+
+        return '<label style="display:block;margin-bottom:.5em"><span style="display:block;font-weight:600">' . esc_html__('Drucker', 'taxmod-label') . '</span>'
+            . '<select name="printer" data-taxmod-label-printer>' . $options . '</select></label>';
+    }
+
+    /**
+     * D-1517 (Stefan 20.11. 18:28 «eigentlich müsste ja der Druckdialog kommen … der Drucker … mit der Voransicht»): this dialog for
+     * a postage label — the printer choice and the preview as for any label; the label is the picture the browser cropped, so
+     * there is no template to choose. Drawn open; label62.js puts the picture into the preview and sends on «Drucken».
+     *
+     * @param array<int, array<string, mixed>> $printers the workplace's printers, its default first (LabelCatalog::at)
+     */
+    public static function postageDialog(array $printers): string
+    {
+        $options = self::printerField($printers)
+            . '<span class="description" style="display:block">' . esc_html__('62-mm-Etikett, 100 mm lang, so groß wie die Marke passt. Ohne Drucker druckt der Browser.', 'taxmod-label') . '</span>';
+        $foot = '<button type="button" class="button button-primary" data-taxmod-label62-send>' . esc_html__('Drucken', 'taxmod-label') . '</button>';
+
+        return \Taxmod\Core\Renderer\DialogMarkup::of(
+            'taxmod-label62-dialog',
+            '',
+            esc_html__('Porto-Etikett drucken', 'taxmod-label'),
+            '<span class="taxmod-dialog-body" style="display:block;padding:.75em 1em;white-space:normal;text-align:left">' . self::panel($options, self::previewBox(true)) . '</span>',
+            $foot,
+            'hidden',
+            '',
+            __('Cancel', 'taxmod-label'),
+            true
+        );
+    }
+
+    /**
      * D-1192: the label and printer chosen in the dialog — one select each, the chosen label first, the printers its roll allows.
      * Every label is filled here, so what prints is what the dialog showed; a small script keeps the printer list to the label.
      *
@@ -519,15 +579,9 @@ final class LabelButton
             return null;
         }
 
-        $printers = '<option value="" data-allows="*">' . esc_html__('Ohne Drucker (wie bisher)', 'taxmod-label') . '</option>';
-        $first    = true;
-        foreach (is_array($template['printers'] ?? null) ? $template['printers'] : [] as $id => $printer) {
-            $allows = array_map('intval', (array) ($printer['allows'] ?? []));
-            $pick   = $first && in_array($chosen, $allows, true);
-            $first  = $first && ! $pick;
-            $printers .= '<option value="' . (int) $id . '" data-allows="' . esc_attr(implode(' ', $allows)) . '"' . ($pick ? ' selected' : '') . '>'
-                . esc_html(trim((string) ($printer['name'] ?? '') . ' · ' . (string) ($printer['roll_name'] ?? ''), ' ·')) . '</option>';
-            $hidden .= $light ? '' : '<input type="hidden" name="printers[' . (int) $id . ']" value="' . esc_attr((string) json_encode($printer)) . '">';
+        $printers = is_array($template['printers'] ?? null) ? $template['printers'] : [];
+        foreach ($light ? [] : $printers as $id => $printer) {
+            $hidden .= '<input type="hidden" name="printers[' . (int) $id . ']" value="' . esc_attr((string) json_encode($printer)) . '">';
         }
 
         $html = '<label style="display:block;margin-bottom:.5em"><span style="display:block;font-weight:600">' . esc_html__('Etikett', 'taxmod-label') . '</span>'
@@ -535,8 +589,7 @@ final class LabelButton
             // D-1284: the module says where the preselected label comes from (a Bauform, a group), shown beneath the choice.
             . (trim((string) ($template['origin'] ?? '')) === '' ? '' : '<span class="description" style="display:block">' . esc_html(trim((string) $template['origin'])) . '</span>')
             . '</label>'
-            . '<label style="display:block;margin-bottom:.5em"><span style="display:block;font-weight:600">' . esc_html__('Drucker', 'taxmod-label') . '</span>'
-            . '<select name="printer" data-taxmod-label-printer>' . $printers . '</select></label>'
+            . self::printerField($printers, $chosen)
             . self::variantChooser($template)
             . self::chooserScript();
 
@@ -622,10 +675,15 @@ final class LabelButton
      * drawn when the dialog opens and again when a choice in it changes. The dialog posts itself as «Open as PDF» with one copy
      * and shows the answer, so the preview is the print path itself (D-1161) and a list of rows renders nothing until one opens.
      */
-    private static function previewBox(): string
+    private static function previewBox(bool $picture = false): string
     {
         if (! self::previewShown()) {
             return '';
+        }
+        // D-1517: a postage label's preview is the picture the browser cropped (label62.js fills it), not a PDF from here.
+        if ($picture) {
+            return '<span class="taxmod-label-dialog-preview"><span style="display:block;font-weight:600">' . esc_html__('Vorschau', 'taxmod-label') . '</span>'
+                . '<span data-taxmod-label62-preview style="display:block;max-width:320px"></span></span>';
         }
 
         return '<span class="taxmod-label-dialog-preview" data-taxmod-label-preview><span style="display:block;font-weight:600">' . esc_html__('Vorschau', 'taxmod-label') . '</span>'

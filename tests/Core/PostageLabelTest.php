@@ -55,15 +55,35 @@ final class PostageLabelTest extends TestCase
 
     public function testEndpointChecksBeforeItActs(): void
     {
-        $code  = (string) file_get_contents(dirname(__DIR__, 2) . '/src/WordPress/PostagePrint.php');
-        $order = array_map(static fn (string $needle): int => (int) strpos($code, $needle), ['current_user_can(', 'check_ajax_referer(', 'is_uploaded_file(', 'PostageLabel::picture(', 'self::defaultPrinter()', 'PostageLabel::pdf(', '->queuePrint(']);
-
-        self::assertSame($order, array_values(array_unique($order)));
+        $code   = (string) file_get_contents(dirname(__DIR__, 2) . '/src/WordPress/PostagePrint.php');
+        $handle = substr($code, (int) strpos($code, 'public static function handle'), (int) strpos($code, 'private static function allowed') - (int) strpos($code, 'public static function handle'));
+        $order  = array_map(static fn (string $needle): int => (int) strpos($handle, $needle), ['self::allowed()', 'is_uploaded_file(', 'PostageLabel::picture(', 'self::printer($wanted)', 'PostageLabel::pdf(', '->queuePrint(']);
         $sorted = $order;
         sort($sorted);
+
+        self::assertNotContains(0, array_slice($order, 1));
         self::assertSame($sorted, $order, 'CD-5: capability → nonce → validate → act.');
+        self::assertMatchesRegularExpression('/function allowed\(\): void\s*\{\s*if \(! current_user_can\(.*?check_ajax_referer\(/s', $code);
         self::assertStringContainsString("add_action('wp_ajax_' . self::ACTION", $code, 'Only on a request from a click, never on a hook of its own.');
-        self::assertStringContainsString('$place->defaultPrinter', $code, 'D-1502: the workplace\'s default printer.');
+        self::assertStringContainsString('isset($printers[$wanted])', $code, 'Only a printer the dialog offers.');
+    }
+
+    public function testPrintDialogIsTheModulesOwn(): void
+    {
+        $root   = dirname(__DIR__, 2);
+        $code   = (string) file_get_contents($root . '/src/WordPress/PostagePrint.php');
+        $button = (string) file_get_contents($root . '/src/WordPress/LabelButton.php');
+        $dialog = substr($code, (int) strpos($code, 'public static function dialog'), (int) strpos($code, 'public static function handle') - (int) strpos($code, 'public static function dialog'));
+
+        // Stefan 20.11. 18:28 «Druckdialog … der Drucker … mit der Voransicht»; Prüftor: no second dialog (D-1511 rule 3) —
+        // LabelButton's dialog with the picture as one more source of its preview, its printer field, no select of its own.
+        self::assertStringStartsWith('public static function dialog(): void' . "\n    {\n        self::allowed();", $dialog);
+        self::assertStringContainsString('LabelButton::postageDialog($printers)', $dialog);
+        self::assertDoesNotMatchRegularExpression('/SelectMarkup|<select|DialogMarkup/', $code);
+        self::assertSame(2, substr_count($button, 'self::printerField('), 'One printer field: the template dialog and the postage dialog.');
+        self::assertSame(2, substr_count($button, 'self::panel('), 'One layout: options left, preview right.');
+        self::assertStringContainsString('self::previewBox(true)', $button);
+        self::assertStringContainsString('dialogCatalog()->printerList()', $code, 'D-1502: the workplace\'s printers, its default first.');
     }
 
     private static function brother(): LabelPrinter
