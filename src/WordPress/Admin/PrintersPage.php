@@ -2,6 +2,7 @@
 
 namespace TaxmodLabel\WordPress\Admin;
 
+use Taxmod\Core\Description\InputKind;
 use Taxmod\WordPress\Draw\SelectMarkup;
 use Taxmod\WordPress\Admin\ListPage;
 use Taxmod\WordPress\Draw\ToggleMarkup;
@@ -124,8 +125,7 @@ final class PrintersPage
     /** Einstellungen › Druck › Allgemein: settings that hold for every printer, starting with the dialog's preview switch. */
     public function general(): string
     {
-        $switch = '<input type="hidden" name="' . esc_attr(LabelButton::PREVIEW_OPTION) . '" value="0"><label style="margin-right:.5em"><input type="checkbox" name="' . esc_attr(LabelButton::PREVIEW_OPTION) . '" value="1"'
-            . checked(LabelButton::previewShown(), true, false) . '> ' . esc_html__('Vorschau des Etiketts im Druckdialog zeigen', 'taxmod-label') . '</label>';
+        $switch = '<input type="hidden" name="' . esc_attr(LabelButton::PREVIEW_OPTION) . '" value="0"><label style="margin-right:.5em">' . ListPage::field(InputKind::Tick, LabelButton::PREVIEW_OPTION, '1', ['checked' => (string) (LabelButton::previewShown()) === '1']) . ' ' . esc_html__('Vorschau des Etiketts im Druckdialog zeigen', 'taxmod-label') . '</label>';
 
         return (isset($_GET['vorschau']) ? '<div class="notice notice-success inline"><p>' . esc_html__('Gespeichert.', 'taxmod-label') . '</p></div>' : '')
             . '<h2>' . esc_html__('Druckdialog', 'taxmod-label') . '</h2>'
