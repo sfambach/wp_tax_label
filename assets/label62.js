@@ -224,11 +224,20 @@
 		doc.close();
 
 		var images = Array.prototype.slice.call(doc.images);
-		Promise.all(images.map(function (image) {
+
+		// Settled once the print dialog is closed: a page that goes on (Versand records the stamp and reloads) must not
+		// leave before, or the frame and its print are gone (Stefan 20.11.: «er druckt nicht»).
+		return Promise.all(images.map(function (image) {
 			return image.complete ? null : new Promise(function (done) { image.onload = done; });
 		})).then(function () {
-			frame.contentWindow.focus();
-			frame.contentWindow.print();
+			return new Promise(function (done) {
+				var view = frame.contentWindow;
+				view.focus();
+				// Chrome holds here until the dialog is closed, so what follows runs after the print.
+				view.print();
+				done();
+			});
+		}).then(function () {
 			setTimeout(function () { frame.remove(); }, 60000);
 		});
 	}
@@ -240,8 +249,9 @@
 				return;
 			}
 
-			print(pages, caption);
-			return true;
+			return print(pages, caption).then(function () {
+				return true;
+			});
 		}).catch(function (failure) {
 			window.alert(taxmodLabel62.failed + ' ' + failure.message);
 			return false;

@@ -27,7 +27,7 @@ final class Label62ScriptTest extends TestCase
 
         self::assertDoesNotMatchRegularExpression('/\bfetch\s*\(|XMLHttpRequest|sendBeacon|FormData/', $script);
         self::assertDoesNotMatchRegularExpression('#https?://#', $script);
-        self::assertStringNotContainsString('print()', str_replace('frame.contentWindow.print()', '', $script), 'Printing happens only in print(), after a click.');
+        self::assertStringNotContainsString('print()', str_replace('view.print()', '', $script), 'Printing happens only in print(), after a click.');
     }
 
     public function testOneBuildingBlockChoosesAndReadsThePdf(): void
@@ -39,6 +39,15 @@ final class Label62ScriptTest extends TestCase
         }
 
         self::assertStringContainsString("TEXT_FILTER = 'taxmod_label_pdf_text'", (string) file_get_contents(dirname(__DIR__, 2) . '/src/WordPress/Label62Script.php'));
+    }
+
+    public function testRunSettlesOnlyAfterThePrintDialog(): void
+    {
+        $script = self::script();
+
+        // Stefan 20.11. «er druckt nicht»: Versand reloaded the page before the print started.
+        self::assertStringContainsString('return print(pages, caption).then(', $script);
+        self::assertMatchesRegularExpression('/view\.print\(\);\s*done\(\);/', $script);
     }
 
     public function testPdfJsShipsWithItsFixedVersion(): void
