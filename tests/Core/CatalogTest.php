@@ -6,6 +6,8 @@ use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use TaxmodLabel\Core\LabelCatalog;
 use TaxmodLabel\Core\LabelContents;
+use TaxmodLabel\Core\PrintRule;
+use TaxmodLabel\Core\PrintRules;
 use TaxmodLabel\Core\Structure;
 use TaxmodLabel\Core\Table;
 use TaxmodLabel\Core\Workplace;
@@ -138,6 +140,52 @@ final class CatalogTest extends TestCase
         self::assertSame([74, 70, 71], array_keys($place->printerList()), 'the default printer first');
         self::assertSame('Phomemo_M220L', $place->get(1)['printer']['queue'], 'the default cannot print it: the next that can');
         self::assertSame([70, 71], array_keys($labels->at(new Workplace(501, 'Ohne', [70, 71, 99], 99))->printerList()), 'a printer that is gone is left out');
+    }
+
+    #[Test]
+    public function a_print_rule_chooses_label_and_printer_only_where_its_printer_can_print_it(): void
+    {
+        $rules  = new PrintRules([
+            new PrintRule(1, 'Falscher Drucker', 2, position: 10, forNode: 10, printer: 70),
+            new PrintRule(2, 'Zweiter QL', 2, position: 20, forNode: 10, copies: 3, printer: 74),
+            new PrintRule(3, 'Ohne Drucker', 2, position: 30, forNode: 10),
+        ]);
+        $labels = $this->withPrinters(true)->withRules($rules);
+
+        // D-1519: 70's roll does not allow label 2 — that rule cannot print here and the next one decides.
+        self::assertSame(['id' => 2, 'name' => 'Zweiter QL', 'label' => 2, 'copies' => 3, 'printer' => 74], $labels->ruleFor(['nodes' => [10]]));
+        self::assertSame('Zweiter_QL', $labels->preferring(74)->get(2)['printer']['queue'], 'the rule\'s printer starts the dialog');
+        self::assertSame([74, 70, 71], array_keys($labels->preferring(74)->printerList()));
+        self::assertSame($labels, $labels->preferring(99), 'a printer that is not here changes nothing');
+        self::assertNull($labels->ruleFor(['nodes' => [11]]), 'no rule for it: the way of today');
+
+        $place = $labels->at(new Workplace(500, 'EG', [71], 71));
+        self::assertSame(3, $place->ruleFor(['nodes' => [10]])['id'] ?? 0, 'at a workplace without printer 74 the rule naming it does not hold; one without a printer does');
+        self::assertNull($this->withPrinters(true)->ruleFor(['nodes' => [10]]), 'without rules there is none');
+    }
+
+    #[Test]
+    public function a_print_rule_for_a_workplace_holds_only_there(): void
+    {
+        $labels = $this->withPrinters(true)->withRules(new PrintRules([new PrintRule(1, 'Nur EG', 2, workplace: 500)]));
+
+        self::assertNull($labels->ruleFor([]), 'no workplace chosen');
+        self::assertSame(1, $labels->at(new Workplace(500, 'EG', [71]))->ruleFor([])['id'] ?? 0);
+        self::assertNull($labels->at(new Workplace(501, 'OG', [71]))->ruleFor([]));
+    }
+
+    #[Test]
+    public function the_print_rules_are_read_from_their_records(): void
+    {
+        $s     = Structure::fromArray(['nodes' => ['label_template' => 23, 'label_rule' => 27], 'fields' => ['label' => 1, 'position' => 2, 'rule_for' => 460, 'rule_form' => 461, 'rule_label' => 465, 'rule_copies' => 466, 'rule_printer' => 467]]);
+        $rules = PrintRules::fromTable($s, new Table([
+            600 => [1 => ['SMD'], 2 => ['20'], 460 => ['10'], 461 => ['21'], 465 => ['2'], 466 => ['2']],
+            601 => [1 => ['Alles'], 2 => ['10'], 465 => ['1'], 467 => ['70']],
+        ]));
+
+        self::assertSame([601, 600], array_map(static fn (PrintRule $r): int => $r->id, $rules->all()), 'in order of position');
+        self::assertSame([10, 21, 2, 2, 0], [$rules->all()[1]->forNode, $rules->all()[1]->form, $rules->all()[1]->label, $rules->all()[1]->copies, $rules->all()[1]->printer]);
+        self::assertNull($rules->all()[0]->copies, 'no number: the label\'s own');
     }
 
     #[Test]

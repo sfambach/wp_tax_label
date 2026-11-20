@@ -587,13 +587,32 @@ final class LabelButton
         $html = '<label style="display:block;margin-bottom:.5em"><span style="display:block;font-weight:600">' . esc_html__('Etikett', 'taxmod-label') . '</span>'
             . '<select name="choice" data-taxmod-label-choice>' . $labels . '</select>'
             // D-1284: the module says where the preselected label comes from (a Bauform, a group), shown beneath the choice.
-            . (trim((string) ($template['origin'] ?? '')) === '' ? '' : '<span class="description" style="display:block">' . esc_html(trim((string) $template['origin'])) . '</span>')
+            . self::origin($template)
             . '</label>'
             . self::printerField($printers, $chosen)
             . self::variantChooser($template)
             . self::chooserScript();
 
         return ['html' => $html, 'hidden' => $hidden];
+    }
+
+    /**
+     * D-1284, D-1519: where the preselected label comes from, beneath the choice; a print rule links to itself, so «why this label»
+     * is one click away.
+     *
+     * @param array<string, mixed> $template
+     */
+    private static function origin(array $template): string
+    {
+        $text = trim((string) ($template['origin'] ?? ''));
+        $rule = (int) ($template['rule'] ?? 0);
+        if ($text === '') {
+            return '';
+        }
+
+        return '<span class="description" style="display:block">' . ($rule > 0
+            ? '<a href="' . esc_url(Admin\RulesPage::url(['satz' => $rule])) . '" target="_blank" rel="noopener">' . esc_html($text) . '</a>'
+            : esc_html($text)) . '</span>';
     }
 
     /**
@@ -683,11 +702,11 @@ final class LabelButton
         // D-1517: a postage label's preview is the picture the browser cropped (label62.js fills it), not a PDF from here.
         if ($picture) {
             return '<span class="taxmod-label-dialog-preview"><span style="display:block;font-weight:600">' . esc_html__('Vorschau', 'taxmod-label') . '</span>'
-                . '<span data-taxmod-label62-preview style="display:block;max-width:320px"></span></span>';
+                . '<span data-taxmod-label62-preview style="display:block"></span></span>';
         }
 
         return '<span class="taxmod-label-dialog-preview" data-taxmod-label-preview><span style="display:block;font-weight:600">' . esc_html__('Vorschau', 'taxmod-label') . '</span>'
-            . '<iframe title="' . esc_attr__('Label preview', 'taxmod-label') . '" style="display:block;width:100%;max-width:320px;height:200px;border:1px solid #c3c4c7;background:#fff"></iframe>'
+            . '<iframe title="' . esc_attr__('Label preview', 'taxmod-label') . '" style="display:block;width:100%;height:320px;border:1px solid #c3c4c7;background:#fff"></iframe>'
             . '<span class="description" data-taxmod-label-preview-note style="display:block"></span></span>'
             . self::previewScript();
     }

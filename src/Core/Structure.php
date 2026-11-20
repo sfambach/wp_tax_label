@@ -18,7 +18,7 @@ final class Structure
     public const NODES = ['label_template'];
 
     /** D-1190, D-1192: the printers and the rolls they hold; D-1502: the workplaces that name printers. */
-    private const OPTIONAL_NODES = ['label_printer', 'label_roll', 'label_workplace'];
+    private const OPTIONAL_NODES = ['label_printer', 'label_roll', 'label_workplace', 'label_rule'];
 
     /** `label` is the name of a record — read here, owned by the modeller's shipped name field. */
     public const FIELDS = ['label', 'template_key', 'template_width', 'template_height', 'template_layout'];
@@ -37,6 +37,8 @@ final class Structure
         'printer_pause', 'money_amount',
         // D-1502: a workplace's printers, the one its dialog starts with, its place in the stock.
         'workplace_printers', 'workplace_default_printer', 'workplace_location',
+        // D-1519: a print rule — what it is for, when it holds, what it prints on which printer how often; `position` is its order.
+        'position', 'rule_for', 'rule_form', 'rule_group', 'rule_place_type', 'rule_workplace', 'rule_label', 'rule_printer', 'rule_copies',
     ];
 
     /**

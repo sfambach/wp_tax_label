@@ -44,7 +44,11 @@ final class WorkplacesPage
                 throw new \RuntimeException(__('Der Arbeitsplatz braucht einen Namen.', 'taxmod-label'));
             }
 
-            return self::url(['satz' => (new LabelService())->createWorkplace($name)]);
+            $place = (new LabelService())->createWorkplace($name);
+            // Stefan 20.11. 18:15: whoever creates a workplace works there — it is theirs at once, not after a second visit to the settings.
+            $place > 0 && update_user_meta(get_current_user_id(), LabelService::WORKPLACE_META, $place);
+
+            return self::url(['satz' => $place]);
         }, self::url());
     }
 
@@ -57,11 +61,10 @@ final class WorkplacesPage
         $places   = $service->workplaceNames();
         $printers = $service->names('label_printer');
         $chosen   = absint($_GET['satz'] ?? 0);
-        $explain  = __('Ein Arbeitsplatz nennt die Drucker, die dort stehen, und den, mit dem der Druckdialog beginnt (★). Wer unter Benutzereinstellungen einen Arbeitsplatz wählt, sieht im Druckdialog nur dessen Drucker.', 'taxmod-label');
+        $explain  = __('Ein Arbeitsplatz nennt die verfügbaren Drucker, die dort stehen, und den, mit dem der Druckdialog beginnt (★). Wer unter Benutzereinstellungen einen Arbeitsplatz wählt, sieht im Druckdialog nur dessen Drucker.', 'taxmod-label');
         if ($chosen > 0 && isset($places[$chosen])) {
             return ListPage::recordHead(__('Arbeitsplatz', 'taxmod-label'), $places[$chosen], self::url(), __('Arbeitsplätze', 'taxmod-label'), $explain)
-                // Stefan 20.11. 18:07, a trial on this page only: the «?» behind the label, not behind the field (Modeller 0.2.179).
-                . ListPage::beside('<div class="taxmod-hints-at-label">' . (string) apply_filters('taxmod_record_editor', '', $chosen, self::url(['satz' => $chosen])) . '</div>', $this->facts($chosen, $service));
+                . ListPage::beside((string) apply_filters('taxmod_record_editor', '', $chosen, self::url(['satz' => $chosen])), $this->facts($chosen, $service));
         }
         $records = array_filter(array_map(static fn (int $id): ?\TaxmodLabel\Core\Workplace => $service->workplaceRecord($id), array_keys($places)));
         $sites   = $service->recordNames(array_map(static fn (\TaxmodLabel\Core\Workplace $w): int => $w->location, $records));
@@ -85,7 +88,7 @@ final class WorkplacesPage
         // D-1526: one head with the count and the explanation behind its «?», one bar with the button.
         return ListPage::listHead(__('Arbeitsplätze', 'taxmod-label'), count($places), $explain)
             . ListPage::listBar('', buttons: $create)
-            . ListPage::table([[__('Arbeitsplatz', 'taxmod-label'), ''], [__('Drucker', 'taxmod-label'), ''], [__('Standarddrucker', 'taxmod-label'), ''], [__('Lagerort', 'taxmod-label'), '']], $body === ''
+            . ListPage::table([[__('Arbeitsplatz', 'taxmod-label'), ''], [__('Verfügbare Drucker', 'taxmod-label'), ''], [__('Standarddrucker', 'taxmod-label'), ''], [__('Lagerort', 'taxmod-label'), '']], $body === ''
                 ? '<tr class="no-items"><td class="colspanchange" colspan="6">' . esc_html__('Nichts gefunden.', 'taxmod-label') . '</td></tr>' : $body);
     }
 
