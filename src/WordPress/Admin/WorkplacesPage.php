@@ -2,7 +2,9 @@
 
 namespace TaxmodLabel\WordPress\Admin;
 
+use Taxmod\Core\Description\InputKind;
 use Taxmod\WordPress\Admin\ListPage;
+use Taxmod\WordPress\Draw\SelectMarkup;
 use Taxmod\WordPress\Plugin as Modeller;
 use TaxmodLabel\WordPress\LabelService;
 
@@ -48,10 +50,10 @@ final class WorkplacesPage
     public function render(): string
     {
         $service = new LabelService();
-        if (! $service->structure()->hasNode('label_workplace')) {
+        if ($service->workplaces() === null) {
             return '<p>' . esc_html__('Im Modell gibt es noch keinen Knoten «Arbeitsplätze».', 'taxmod-label') . '</p>';
         }
-        $places   = $service->names('label_workplace');
+        $places   = $service->workplaceNames();
         $printers = $service->names('label_printer');
         $chosen   = absint($_GET['satz'] ?? 0);
         if ($chosen > 0 && isset($places[$chosen])) {
@@ -70,7 +72,7 @@ final class WorkplacesPage
         $create = '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '" style="display:inline">'
             . '<input type="hidden" name="action" value="' . esc_attr(self::ACTION) . '">' . wp_nonce_field(self::ACTION, '_wpnonce', true, false)
             . ListPage::dialogAction('taxmod-label-new-workplace', __('Neuer Arbeitsplatz', 'taxmod-label'), __('Neuer Arbeitsplatz', 'taxmod-label'),
-                '<label style="display:block">' . esc_html__('Name', 'taxmod-label') . '<br><input type="text" name="name" required style="width:100%"></label>',
+                '<label style="display:block">' . esc_html__('Name', 'taxmod-label') . '<br>' . ListPage::field(InputKind::Line, 'name', '', ['required' => true]) . '</label>',
                 'do', 'create', __('Anlegen', 'taxmod-label'))
             . '</form>';
 
@@ -92,18 +94,14 @@ final class WorkplacesPage
     {
         $lines   = is_array($lines) ? $lines : [];
         $service = new LabelService();
-        if (! $service->structure()->hasNode('label_workplace')) {
+        if ($service->workplaces() === null) {
             return $lines;
         }
-        $places  = $service->names('label_workplace');
-        $current = $service->workplace()?->id ?? 0;
-        $options = '<option value="0">' . esc_html__('— keiner —', 'taxmod-label') . '</option>';
-        foreach ($places as $id => $name) {
-            $options .= '<option value="' . esc_attr((string) $id) . '"' . selected($id, $current, false) . '>' . esc_html($name) . '</option>';
-        }
+        $places  = $service->workplaceNames();
+        $current = $service->workplace()?->id;
         $lines[] = [
             'label'   => __('Arbeitsplatz', 'taxmod-label'),
-            'control' => '<select name="' . esc_attr(LabelService::WORKPLACE_META) . '">' . $options . '</select>'
+            'control' => SelectMarkup::of(LabelService::WORKPLACE_META, $places, $current === null ? null : (string) $current, nothingWord: __('— keiner —', 'taxmod-label'))
                 . '<p class="description">' . esc_html__('Der Druckdialog zeigt nur die Drucker dieses Arbeitsplatzes; ohne Arbeitsplatz alle.', 'taxmod-label') . '</p>',
             // The stock has already checked capability and nonce for its own form (CD-5).
             'save'    => static function () use ($places): void {

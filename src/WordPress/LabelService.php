@@ -130,9 +130,6 @@ final class LabelService
     /** D-1502: the workplace the current person chose; null without one, or where the record is gone or no workplace. */
     public function workplace(?int $userId = null): ?Workplace
     {
-        if (! $this->structure()->hasNode('label_workplace')) {
-            return null;
-        }
         $id = (int) get_user_meta($userId ?? get_current_user_id(), self::WORKPLACE_META, true);
 
         return $id > 0 ? $this->workplaceRecord($id) : null;
@@ -141,7 +138,31 @@ final class LabelService
     /** D-1502: one record of «Arbeitsplätze», for the list of workplaces. */
     public function workplaceRecord(int $id): ?Workplace
     {
-        return $this->structure()->hasNode('label_workplace') ? Workplace::from($this->structure(), $this->table('label_workplace'), $id) : null;
+        $places = $this->workplaces();
+
+        return $places === null ? null : Workplace::from($this->structure(), $places, $id);
+    }
+
+    /**
+     * D-1502: the records of «Arbeitsplätze»; null where the model has none — no role, or a role pointing at a node this
+     * database does not have (Prüftor 2026-11-20: a dead reference never takes the page down, it is «kein Arbeitsplatz»).
+     */
+    public function workplaces(): ?Table
+    {
+        if (! $this->structure()->hasNode('label_workplace')) {
+            return null;
+        }
+        try {
+            return $this->table('label_workplace');
+        } catch (DomainError) {
+            return null;
+        }
+    }
+
+    /** @return array<int, string> D-1502: workplace id ⇒ name, by name; empty where the model has no workplaces */
+    public function workplaceNames(): array
+    {
+        return $this->workplaces() === null ? [] : $this->names('label_workplace');
     }
 
     /** D-1502: a new workplace with its name, one act (undo per act, D-1410); its printers are set in the record editor. */
