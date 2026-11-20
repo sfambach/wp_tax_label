@@ -15,6 +15,7 @@ use TaxmodLabel\WordPress\Admin\WorkplacesPage;
  *   P["plugins_loaded"] --> C{"modeller ≥ MIN_MODELLER?"}
  *   C -->|no| N["admin notice"]
  *   C -->|yes| B["taxmod_label_button · taxmod_print_render"]
+ *   C -->|yes| S["script taxmod-label62 (D-1507)"]
  *   C -->|yes| A["abilities taxmod-label/…"]
  *   C -->|yes| R["REST taxmod-label/v1"]
  *   C -->|yes| L["taxmod_logistics_pages: Allgemein, Etiketten, Drucker, Arbeitsplätze, Druckmedium (area print)"]
@@ -25,7 +26,7 @@ use TaxmodLabel\WordPress\Admin\WorkplacesPage;
  */
 final class Plugin
 {
-    public const VERSION = '0.0.21';
+    public const VERSION = '0.0.23';
 
     /** D-1295: labelValues and queuePrint came with 0.2.61; DialogNumber since 0.2.133 (D-1431); button/iconButton/listBar since 0.2.172 (D-1500). */
     public const MIN_MODELLER = '0.2.175';
@@ -63,6 +64,8 @@ final class Plugin
         PrintRender::boot();
         // D-1439: the one render path, asked by the stock's bulk print.
         LabelRender::boot();
+        // D-1507: the 62 mm postage print, attached by other modules through its handle.
+        Label62Script::boot();
         add_action('wp_abilities_api_init', static fn () => (new LabelAbilities())->register());
         add_action('rest_api_init', static fn () => (new EditorRoutes())->register());
         add_filter('taxmod_logistics_pages', self::pages(...));

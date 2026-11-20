@@ -1,0 +1,38 @@
+<?php declare(strict_types=1);
+
+namespace TaxmodLabel\WordPress;
+
+/**
+ * D-1507: the one place the 62 mm postage print (pdf.js, crop, print in the browser) lives. Other modules attach it by HANDLE only;
+ * when this module is missing the handle is not registered and they leave their button out.
+ *
+ * @see docs/konzept.md §7
+ */
+final class Label62Script
+{
+    public const HANDLE = 'taxmod-label62';
+
+    public const PDFJS_HANDLE = 'taxmod-pdfjs';
+
+    /** Shipped in assets/pdfjs, never fetched from a CDN at runtime. */
+    public const PDFJS_VERSION = '3.11.174';
+
+    public static function boot(): void
+    {
+        add_action('init', self::register(...));
+    }
+
+    public static function register(): void
+    {
+        wp_register_script(self::PDFJS_HANDLE, Plugin::url('assets/pdfjs/pdf.min.js'), [], self::PDFJS_VERSION, true);
+        wp_register_script(self::HANDLE, Plugin::url('assets/label62.js'), [self::PDFJS_HANDLE], Plugin::VERSION, true);
+        wp_localize_script(self::HANDLE, 'taxmodLabel62', [
+            'worker' => Plugin::url('assets/pdfjs/pdf.worker.min.js'),
+            // Postage PDFs use fonts they do not embed; without these pdf.js leaves that text out.
+            'cmaps'  => Plugin::url('assets/pdfjs/cmaps/'),
+            'fonts'  => Plugin::url('assets/pdfjs/standard_fonts/'),
+            'empty'  => __('The PDF has no printed content.', 'taxmod-label'),
+            'failed' => __('The PDF could not be read:', 'taxmod-label'),
+        ]);
+    }
+}

@@ -6,6 +6,8 @@ return [
     'language'           => 'de_DE',
     'plural-forms'       => 'nplurals=2; plural=(n != 1);',
     'messages'           => [
+        'The PDF has no printed content.' => 'Das PDF enthält nichts Druckbares.',
+        'The PDF could not be read:'      => 'Das PDF ließ sich nicht lesen:',
         'A label needs a code like O-123 and a title.'                               => 'Ein Etikett braucht einen Code wie O-123 und einen Titel.',
         'A label needs a known format, a code like O-123 and a title.'               => 'Ein Etikett braucht ein bekanntes Format, einen Code wie O-123 und einen Titel.',
         'Cancel'                                                                     => 'Abbrechen',
