@@ -183,7 +183,8 @@ final class LabelService
     /** D-1502: the labels as a print dialog offers them — only the printers of the person's workplace; without one, all. */
     public function dialogCatalog(): LabelCatalog
     {
-        return $this->catalog()->at($this->workplace())->withRules($this->rules());
+        // D-1541: which rule holds is the modeller's one rule book, never this module's.
+        return $this->catalog()->at($this->workplace())->withRules($this->rules(), fn (array $book, array $context, \Closure $usable): ?int => $this->door->firstRule($book, $context, usable: $usable));
     }
 
     /** D-1519: the print rules, read once; none where the model has no «Druckregeln» or the role points at a node it lacks. */

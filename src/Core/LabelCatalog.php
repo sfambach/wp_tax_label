@@ -25,12 +25,14 @@ final class LabelCatalog
      */
     /**
      * @param array<int, array<string, mixed>> $printers D-1192: printer id ⇒ what the label dialog takes, with `allows` (label ids)
+     * @param ?\Closure $firstRule D-1541: the modeller's rule book, see {@see self::withRules()}
      */
     public function __construct(
         private readonly array $templates = [],
         private readonly array $printers = [],
         private readonly ?PrintRules $rules = null,
         private readonly int $workplace = 0,
+        private readonly ?\Closure $firstRule = null,
     )
     {
     }
@@ -217,10 +219,15 @@ final class LabelCatalog
         return $this->onPrinters($printers, $place->id);
     }
 
-    /** D-1519: the print rules this catalog answers with — read once, asked for every record. */
-    public function withRules(PrintRules $rules): self
+    /**
+     * D-1519, D-1541: the print rules this catalog answers with — read once, asked for every record — and the one rule book that
+     * decides which holds (at the boundary `ModelDoor::firstRule`).
+     *
+     * @param \Closure(list<array{id: int, position: int, conditions: array<int, int>}>, array<int, list<int>>, \Closure(int): bool): ?int $firstRule
+     */
+    public function withRules(PrintRules $rules, \Closure $firstRule): self
     {
-        return new self($this->templates, $this->printers, $rules, $this->workplace);
+        return new self($this->templates, $this->printers, $rules, $this->workplace, $firstRule);
     }
 
     /**
@@ -232,8 +239,17 @@ final class LabelCatalog
      */
     public function ruleFor(array $asked): ?array
     {
-        $rule = $this->rules?->first(PrintContext::fromArray($asked, $this->workplace), fn (PrintRule $r): bool => isset($this->templates[$r->label])
-            && ($r->printer === 0 || in_array($r->label, $this->printers[$r->printer]['allows'] ?? [], true)));
+        $rules = $this->rules;
+        if ($rules === null || $this->firstRule === null || $rules->isEmpty()) {
+            return null;
+        }
+        $usable = function (int $id) use ($rules): bool {
+            $r = $rules->get($id);
+
+            return $r !== null && isset($this->templates[$r->label]) && ($r->printer === 0 || in_array($r->label, $this->printers[$r->printer]['allows'] ?? [], true));
+        };
+        $found = ($this->firstRule)($rules->book(), PrintRules::context(PrintContext::fromArray($asked, $this->workplace)), $usable);
+        $rule  = $found === null ? null : $rules->get($found);
 
         return $rule === null ? null : ['id' => $rule->id, 'name' => $rule->name, 'label' => $rule->label, 'copies' => $rule->copies, 'printer' => $rule->printer];
     }
@@ -263,7 +279,7 @@ final class LabelCatalog
             $templates[$id] = $template;
         }
 
-        return new self($templates, $printers, $this->rules, $workplace);
+        return new self($templates, $printers, $this->rules, $workplace, $this->firstRule);
     }
 
     /** @return array<int, array<string, mixed>> D-1192: the printers, for the list under Druck › Drucker */

@@ -4,6 +4,7 @@ namespace TaxmodLabel\Tests\Core;
 
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use TaxmodLabel\Tests\Support\RuleBookStandIn;
 use TaxmodLabel\Core\LabelCatalog;
 use TaxmodLabel\Core\LabelContents;
 use TaxmodLabel\Core\PrintRule;
@@ -150,7 +151,7 @@ final class CatalogTest extends TestCase
             new PrintRule(2, 'Zweiter QL', 2, position: 20, forNode: 10, copies: 3, printer: 74),
             new PrintRule(3, 'Ohne Drucker', 2, position: 30, forNode: 10),
         ]);
-        $labels = $this->withPrinters(true)->withRules($rules);
+        $labels = $this->withPrinters(true)->withRules($rules, RuleBookStandIn::closure());
 
         // D-1519: 70's roll does not allow label 2 — that rule cannot print here and the next one decides.
         self::assertSame(['id' => 2, 'name' => 'Zweiter QL', 'label' => 2, 'copies' => 3, 'printer' => 74], $labels->ruleFor(['nodes' => [10]]));
@@ -167,7 +168,7 @@ final class CatalogTest extends TestCase
     #[Test]
     public function a_print_rule_for_a_workplace_holds_only_there(): void
     {
-        $labels = $this->withPrinters(true)->withRules(new PrintRules([new PrintRule(1, 'Nur EG', 2, workplace: 500)]));
+        $labels = $this->withPrinters(true)->withRules(new PrintRules([new PrintRule(1, 'Nur EG', 2, workplace: 500)]), RuleBookStandIn::closure());
 
         self::assertNull($labels->ruleFor([]), 'no workplace chosen');
         self::assertSame(1, $labels->at(new Workplace(500, 'EG', [71]))->ruleFor([])['id'] ?? 0);

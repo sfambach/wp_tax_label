@@ -3,20 +3,25 @@
 namespace TaxmodLabel\Core;
 
 /**
- * The one evaluator of the print rules: the rules in their order (position, then id), and the first that holds decides. Read once,
- * asked for every record (CD-7).
+ * The print rules as the modeller's one rule book reads them (D-1541): each rule's conditions under a key, and what is about to be
+ * printed as the nodes that count for each key. Which rule holds is decided there, never here; this class only translates. Read
+ * once, asked for every record (CD-7).
  *
  * ```mermaid
  * flowchart LR
- *   C["PrintContext"] --> R{"rule 1 … n, in order"}
- *   R -->|first that holds| L["label (+ copies, + printer)"]
- *   R -->|none| N["null: the way of today"]
+ *   R["Druckregeln records"] -->|book| B["ModelDoor::firstRule"]
+ *   C["PrintContext"] -->|context| B
+ *   B -->|rule id| L["label (+ copies, + printer)"]
+ *   B -->|null| N["the way of today"]
  * ```
  *
  * @see wp-taxonomy-modeler docs/pakete/druckregeln/konzept.md
  */
 final class PrintRules
 {
+    /** The condition keys of the rule book — one per fixed condition (R1); place type and workplace hold by equality. */
+    public const FOR = 1, FORM = 2, GROUP = 3, PLACE_TYPE = 4, WORKPLACE = 5;
+
     /** @var list<PrintRule> */
     private readonly array $rules;
 
@@ -63,15 +68,50 @@ final class PrintRules
         return $this->rules;
     }
 
-    /** @param (\Closure(PrintRule): bool)|null $usable what else a rule needs here, e.g. its printer at the workplace */
-    public function first(PrintContext $context, ?\Closure $usable = null): ?PrintRule
+    public function get(int $id): ?PrintRule
     {
         foreach ($this->rules as $rule) {
-            if ($rule->holdsFor($context) && ($usable === null || $usable($rule))) {
+            if ($rule->id === $id) {
                 return $rule;
             }
         }
 
         return null;
+    }
+
+    /**
+     * The rules as the rule book takes them. A rule without a label never holds, so it is not handed in.
+     *
+     * @return list<array{id: int, position: int, conditions: array<int, int>}>
+     */
+    public function book(): array
+    {
+        $out = [];
+        foreach ($this->rules as $rule) {
+            if ($rule->label > 0) {
+                $out[] = ['id' => $rule->id, 'position' => $rule->position, 'conditions' => [
+                    self::FOR => $rule->forNode, self::FORM => $rule->form, self::GROUP => $rule->group,
+                    self::PLACE_TYPE => $rule->placeType, self::WORKPLACE => $rule->workplace,
+                ]];
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * What is about to be printed, as the rule book asks: each key with the nodes that count — the paths with every node above,
+     * place type and workplace as the one value they are (none: nothing counts, so a rule naming one does not hold).
+     *
+     * @return array<int, list<int>>
+     */
+    public static function context(PrintContext $context): array
+    {
+        $one = static fn (int $id): array => $id > 0 ? [$id] : [];
+
+        return [
+            self::FOR => $context->nodePath, self::FORM => $context->formPath, self::GROUP => $context->groupPath,
+            self::PLACE_TYPE => $one($context->placeType), self::WORKPLACE => $one($context->workplace),
+        ];
     }
 }
