@@ -79,6 +79,7 @@ final class Plugin
         WorkplaceSwitch::boot();
         if (self::handlesAdminActions()) {
             LabelButton::wireActions();
+            PostagePrint::wire();
             LabelPrint::boot();
             PrintersPage::boot();
             WorkplacesPage::boot();

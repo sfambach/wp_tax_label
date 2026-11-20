@@ -21,13 +21,28 @@ final class Label62ScriptTest extends TestCase
         }
     }
 
-    public function testPdfStaysInTheBrowser(): void
+    public function testPdfStaysInTheBrowserOnlyTheCroppedPictureGoesToThePrintService(): void
     {
         $script = self::script();
 
-        self::assertDoesNotMatchRegularExpression('/\bfetch\s*\(|XMLHttpRequest|sendBeacon|FormData/', $script);
+        // D-1507 had no request at all. D-1517 (Stefan 20.11. «aufs moderne Drucken umstellen»): one request, to the one endpoint,
+        // carrying the cropped label as PNG — never the PDF (`source`, `file`) itself.
+        self::assertSame(1, preg_match_all('/\bfetch\s*\(/', $script));
+        self::assertStringContainsString('fetch(taxmodLabel62.service.url, ', $script);
+        self::assertStringContainsString("label.toBlob(done, 'image/png')", $script);
+        self::assertStringContainsString('png: png', $script);
+        self::assertDoesNotMatchRegularExpression('/append\([^)]*(source|file)\b|XMLHttpRequest|sendBeacon/', $script);
         self::assertDoesNotMatchRegularExpression('#https?://#', $script);
         self::assertStringNotContainsString('print()', str_replace('view.print()', '', $script), 'Printing happens only in print(), after a click.');
+    }
+
+    public function testWithoutWorkplacePrinterTheBrowserPrints(): void
+    {
+        $script = self::script();
+
+        // Prüftor D-1517 (3): the browser's dialog is the fallback — no default printer, a refusal, a failed job.
+        self::assertStringContainsString("return state === 'sent' ? true : print(pages, caption).then(", $script);
+        self::assertStringContainsString("Promise.resolve('browser')", $script);
     }
 
     public function testOneBuildingBlockChoosesAndReadsThePdf(): void
@@ -46,7 +61,7 @@ final class Label62ScriptTest extends TestCase
         $script = self::script();
 
         // Stefan 20.11. «er druckt nicht»: Versand reloaded the page before the print started.
-        self::assertStringContainsString('return print(pages, caption).then(', $script);
+        self::assertStringContainsString(': print(pages, caption).then(function () { return true; })', $script);
         self::assertMatchesRegularExpression('/view\.print\(\);\s*done\(\);/', $script);
     }
 
