@@ -194,6 +194,28 @@ final class LabelService
         return $this->structure()->hasNode('label_roll') ? $this->table('label_roll') : null;
     }
 
+    /**
+     * The names of any records, read in one go (CD-7) — such as the places the workplaces stand at.
+     *
+     * @param list<int> $ids
+     * @return array<int, string> record id ⇒ name
+     */
+    public function recordNames(array $ids): array
+    {
+        $ids = array_values(array_unique(array_filter($ids)));
+        if ($ids === []) {
+            return [];
+        }
+        $table = new Table($this->door->valuesOf($ids));
+        $name  = $this->structure()->field('label');
+        $out   = [];
+        foreach ($ids as $id) {
+            $out[$id] = trim((string) ($table->first($id, $name) ?? '')) ?: '#' . $id;
+        }
+
+        return $out;
+    }
+
     /** @return array<int, string> record id ⇒ name, by name */
     public function names(string $node): array
     {
