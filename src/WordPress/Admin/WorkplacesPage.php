@@ -58,8 +58,7 @@ final class WorkplacesPage
         $printers = $service->names('label_printer');
         $chosen   = absint($_GET['satz'] ?? 0);
         if ($chosen > 0 && isset($places[$chosen])) {
-            return '<h2>' . esc_html($places[$chosen]) . '</h2>'
-                . ListPage::toolbar([ListPage::back(self::url(), __('Arbeitsplätze', 'taxmod-label'))])
+            return ListPage::head($places[$chosen], self::url(), __('Arbeitsplätze', 'taxmod-label'))
                 . ListPage::beside((string) apply_filters('taxmod_record_editor', '', $chosen, self::url(['satz' => $chosen])), $this->facts($chosen, $service));
         }
         $body = '';
