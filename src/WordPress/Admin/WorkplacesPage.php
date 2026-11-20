@@ -4,13 +4,14 @@ namespace TaxmodLabel\WordPress\Admin;
 
 use Taxmod\Core\Description\InputKind;
 use Taxmod\WordPress\Admin\ListPage;
-use Taxmod\WordPress\Draw\SelectMarkup;
+use Taxmod\WordPress\Admin\RecordPick;
 use Taxmod\WordPress\Plugin as Modeller;
 use TaxmodLabel\WordPress\LabelService;
 
 /**
- * Einstellungen › Druck › Arbeitsplätze (D-1502): the shared workplaces with their printers, each opened in the modeller's record
- * editor, and «Neuer Arbeitsplatz»; the person chooses theirs under Benutzereinstellungen.
+ * Logistik › Stammdaten › Arbeitsplätze (D-1502; Stufe 3, his word 2026-11-20 «ein Arbeitsplatz ist ein Stammdatum»): the shared
+ * workplaces with their printers, each opened in the modeller's record editor beside what it can print, and «Neuer Arbeitsplatz»; the
+ * person chooses theirs under Benutzereinstellungen or in the admin bar.
  *
  * @see wp-taxonomy-modeler docs/pakete/arbeitsplatz/konzept.md
  */
@@ -59,7 +60,7 @@ final class WorkplacesPage
         if ($chosen > 0 && isset($places[$chosen])) {
             return '<h2>' . esc_html($places[$chosen]) . '</h2>'
                 . ListPage::toolbar([ListPage::back(self::url(), __('Arbeitsplätze', 'taxmod-label'))])
-                . (string) apply_filters('taxmod_record_editor', '', $chosen, self::url(['satz' => $chosen]));
+                . ListPage::beside((string) apply_filters('taxmod_record_editor', '', $chosen, self::url(['satz' => $chosen])), $this->facts($chosen, $service));
         }
         $body = '';
         foreach ($places as $id => $name) {
@@ -85,6 +86,26 @@ final class WorkplacesPage
     }
 
     /**
+     * Stufe 3: what this workplace can print, derived — each printer with its loaded roll and the labels that roll allows, the
+     * default printer first (★). Nothing of it is stored at the workplace.
+     */
+    private function facts(int $place, LabelService $service): string
+    {
+        $workplace = $service->workplaceRecord($place);
+        $catalog   = $service->catalog();
+        $printers  = $workplace === null ? [] : $catalog->at($workplace)->printerList();
+        $rows      = '';
+        foreach ($printers as $id => $printer) {
+            $labels = implode(', ', array_unique(array_map(static fn (int $t): string => (string) ($catalog->get($t)['name'] ?? '#' . $t), $printer['allows'] ?? [])));
+            $rows  .= '<tr><th scope="row" style="width:14em">' . esc_html(($id === $workplace?->defaultPrinter ? '★ ' : '') . (string) ($printer['name'] ?? '#' . $id)) . '</th>'
+                . '<td>' . esc_html((string) ($printer['roll_name'] ?? '') ?: '—') . '<br><span class="description">' . esc_html($labels ?: __('keine Etiketten', 'taxmod-label')) . '</span></td></tr>';
+        }
+
+        return '<table class="widefat striped"><thead><tr><th colspan="2">' . esc_html__('Was hier gedruckt werden kann', 'taxmod-label') . '</th></tr></thead>'
+            . ($rows === '' ? '<tr><td colspan="2">' . esc_html__('Keine aktiven Drucker zugewiesen.', 'taxmod-label') . '</td></tr>' : $rows) . '</table>';
+    }
+
+    /**
      * D-1502: the line «Arbeitsplatz» in the stock's Benutzereinstellungen (filter `taxmod_user_settings`).
      *
      * @param list<array<string, mixed>> $lines
@@ -101,7 +122,8 @@ final class WorkplacesPage
         $current = $service->workplace()?->id;
         $lines[] = [
             'label'   => __('Arbeitsplatz', 'taxmod-label'),
-            'control' => SelectMarkup::of(LabelService::WORKPLACE_META, $places, $current === null ? null : (string) $current, nothingWord: __('— keiner —', 'taxmod-label'))
+            // D-1508: a choice of records is the modeller's record chooser.
+            'control' => RecordPick::field(LabelService::WORKPLACE_META, [['depth' => 0, 'name' => __('Arbeitsplätze', 'taxmod-label'), 'records' => $places]], $current)
                 . '<p class="description">' . esc_html__('Der Druckdialog zeigt nur die Drucker dieses Arbeitsplatzes; ohne Arbeitsplatz alle.', 'taxmod-label') . '</p>',
             // The stock has already checked capability and nonce for its own form (CD-5).
             'save'    => static function () use ($places): void {
