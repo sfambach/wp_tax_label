@@ -2,6 +2,7 @@
 
 namespace TaxmodLabel\WordPress\Admin;
 
+use Taxmod\WordPress\Draw\SelectMarkup;
 use Taxmod\WordPress\Admin\ListPage;
 use Taxmod\WordPress\Draw\ToggleMarkup;
 use Taxmod\WordPress\Plugin as Modeller;
@@ -319,11 +320,7 @@ final class PrintersPage
                 return '<span class="description">' . esc_html__('Keine Druckmedien eingetragen', 'taxmod-label') . '</span>';
             }
         }
-        $options = '';
-        foreach ($rolls as $id => $roll) {
-            $options .= '<option value="' . esc_attr((string) $id) . '"' . selected($id, $current, false) . '>' . esc_html($roll) . '</option>';
-        }
-        $body = '<label style="display:block">' . esc_html__('Welche Rolle ist jetzt eingelegt?', 'taxmod-label') . '<br><select name="roll" style="width:100%">' . $options . '</select></label>'
+        $body = '<label style="display:block">' . esc_html__('Welche Rolle ist jetzt eingelegt?', 'taxmod-label') . '<br>' . SelectMarkup::of('roll', $rolls, (string) $current, false, attributes: ['style' => 'width:100%']) . '</label>'
             . '<p class="description">' . esc_html(sprintf(/* translators: %s: printer */ __('%s druckt danach nur die Etiketten, die diese Rolle erlaubt.', 'taxmod-label'), $name)) . '</p>';
 
         return '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '" style="display:inline">'
