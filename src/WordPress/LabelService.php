@@ -2,6 +2,7 @@
 
 namespace TaxmodLabel\WordPress;
 
+use Taxmod\Core\Exception\DomainError;
 use Taxmod\WordPress\ModelDoor;
 use TaxmodLabel\Core\Drawing\Picture;
 use TaxmodLabel\Core\LabelCatalog;
@@ -32,7 +33,7 @@ final class LabelService
 
     /**
      * `apply_filters(CATALOG_FILTER, null)`: the labels with their printers, for a module that offers them (D-1296: the stock
-     * asks here instead of keeping its own copy). Null while the model has no labels node.
+     * asks here instead of keeping its own copy). Null while the structure or the model has no labels node.
      */
     public const CATALOG_FILTER = 'taxmod_label_catalog';
 
@@ -44,7 +45,8 @@ final class LabelService
         }
         try {
             return (new self())->catalog();
-        } catch (LabelError) {
+        } catch (LabelError | DomainError) {
+            // A model without the labels node (a fresh or foreign database): no labels, the page goes on (Prüftor 2026-11-20).
             return $catalog;
         }
     }
