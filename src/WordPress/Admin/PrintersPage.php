@@ -262,9 +262,9 @@ final class PrintersPage
             $actions = $this->changeRollDialog($record, $name, $rolls, $service);
         }
 
-        return '<h2>' . esc_html($name) . '</h2>'
-            // D-1308/D-1316: back first, then the page's buttons, in the one toolbar top left (Stefan, 2026-11-18).
-            . ListPage::toolbar([ListPage::back($here(), $isRoll ? __('Druckmedium', 'taxmod-label') : __('Drucker', 'taxmod-label')), $actions])
+        // D-1521: the way back stands before the title in the page head; the toolbar keeps the page's buttons.
+        return ListPage::head($name, $here(), $isRoll ? __('Druckmedium', 'taxmod-label') : __('Drucker', 'taxmod-label'))
+            . ListPage::toolbar([$actions])
             . ListPage::beside($form, '<table class="widefat striped">' . $facts . '</table>');
     }
 
