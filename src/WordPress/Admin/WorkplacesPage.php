@@ -57,18 +57,23 @@ final class WorkplacesPage
         $places   = $service->workplaceNames();
         $printers = $service->names('label_printer');
         $chosen   = absint($_GET['satz'] ?? 0);
+        $explain  = __('Ein Arbeitsplatz nennt die Drucker, die dort stehen, und den, mit dem der Druckdialog beginnt (★). Wer unter Benutzereinstellungen einen Arbeitsplatz wählt, sieht im Druckdialog nur dessen Drucker.', 'taxmod-label');
         if ($chosen > 0 && isset($places[$chosen])) {
-            return ListPage::head($places[$chosen], self::url(), __('Arbeitsplätze', 'taxmod-label'))
+            return ListPage::recordHead(__('Arbeitsplatz', 'taxmod-label'), $places[$chosen], self::url(), __('Arbeitsplätze', 'taxmod-label'), $explain)
                 // Stefan 20.11. 18:07, a trial on this page only: the «?» behind the label, not behind the field (Modeller 0.2.179).
                 . ListPage::beside('<div class="taxmod-hints-at-label">' . (string) apply_filters('taxmod_record_editor', '', $chosen, self::url(['satz' => $chosen])) . '</div>', $this->facts($chosen, $service));
         }
-        $body = '';
-        foreach ($places as $id => $name) {
-            $place = $service->workplaceRecord($id);
-            $names = array_map(static fn (int $p): string => ($p === $place?->defaultPrinter ? '★ ' : '') . ($printers[$p] ?? '#' . $p), $place?->printers ?? []);
-            $body .= '<tr><th scope="row" class="check-column"></th><td><a href="' . esc_url(self::url(['satz' => $id])) . '"><strong>' . esc_html($name) . '</strong></a></td>'
+        $records = array_filter(array_map(static fn (int $id): ?\TaxmodLabel\Core\Workplace => $service->workplaceRecord($id), array_keys($places)));
+        $sites   = $service->recordNames(array_map(static fn (\TaxmodLabel\Core\Workplace $w): int => $w->location, $records));
+        $body    = '';
+        foreach ($records as $place) {
+            $names = array_map(static fn (int $p): string => ($p === $place->defaultPrinter ? '★ ' : '') . ($printers[$p] ?? '#' . $p), $place->printers);
+            $body .= '<tr><th scope="row" class="check-column"></th><td><a href="' . esc_url(self::url(['satz' => $place->id])) . '"><strong>' . esc_html($places[$place->id]) . '</strong></a></td>'
                 . '<td>' . esc_html(implode(', ', $names) ?: '—') . '</td>'
-                . '<td style="text-align:right">' . ListPage::iconButton('visibility', __('Öffnen', 'taxmod-label'), self::url(['satz' => $id])) . '</td></tr>';
+                // Stefan 20.11. 18:21: «der gewählte Standarddrucker und der Platz … ganz nett zu sehen».
+                . '<td>' . esc_html($place->defaultPrinter > 0 ? ($printers[$place->defaultPrinter] ?? '#' . $place->defaultPrinter) : '—') . '</td>'
+                . '<td>' . esc_html($place->location > 0 ? ($sites[$place->location] ?? '#' . $place->location) : '—') . '</td>'
+                . '<td style="text-align:right">' . ListPage::openButton(self::url(['satz' => $place->id])) . '</td></tr>';
         }
         $create = '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '" style="display:inline">'
             . '<input type="hidden" name="action" value="' . esc_attr(self::ACTION) . '">' . wp_nonce_field(self::ACTION, '_wpnonce', true, false)
@@ -77,12 +82,11 @@ final class WorkplacesPage
                 'do', 'create', __('Anlegen', 'taxmod-label'))
             . '</form>';
 
-        return '<h2>' . esc_html__('Arbeitsplätze', 'taxmod-label') . '</h2>'
-            . '<p class="description">' . esc_html__('Ein Arbeitsplatz nennt die Drucker, die dort stehen, und den, mit dem der Druckdialog beginnt (★). Wer unter Benutzereinstellungen einen Arbeitsplatz wählt, sieht im Druckdialog nur dessen Drucker.', 'taxmod-label') . '</p>'
-            . ListPage::toolbar([$create])
-            . ListPage::listBar(sprintf(/* translators: %d: number of workplaces */ _n('%d Arbeitsplatz', '%d Arbeitsplätze', count($places), 'taxmod-label'), count($places)))
-            . ListPage::table([[__('Arbeitsplatz', 'taxmod-label'), ''], [__('Drucker', 'taxmod-label'), '']], $body === ''
-                ? '<tr class="no-items"><td class="colspanchange" colspan="4">' . esc_html__('Nichts gefunden.', 'taxmod-label') . '</td></tr>' : $body);
+        // D-1526: one head with the count and the explanation behind its «?», one bar with the button.
+        return ListPage::listHead(__('Arbeitsplätze', 'taxmod-label'), count($places), $explain)
+            . ListPage::listBar('', buttons: $create)
+            . ListPage::table([[__('Arbeitsplatz', 'taxmod-label'), ''], [__('Drucker', 'taxmod-label'), ''], [__('Standarddrucker', 'taxmod-label'), ''], [__('Lagerort', 'taxmod-label'), '']], $body === ''
+                ? '<tr class="no-items"><td class="colspanchange" colspan="6">' . esc_html__('Nichts gefunden.', 'taxmod-label') . '</td></tr>' : $body);
     }
 
     /**
