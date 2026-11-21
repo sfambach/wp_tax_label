@@ -611,7 +611,7 @@ final class LabelButton
         }
 
         return '<span class="description" style="display:block">' . ($rule > 0
-            ? '<a href="' . esc_url(Admin\RulesPage::url(['satz' => $rule])) . '" target="_blank" rel="noopener">' . esc_html($text) . '</a>'
+            ? '<a href="' . esc_url(Admin\PrintRulesSetup::url($rule)) . '" target="_blank" rel="noopener">' . esc_html($text) . '</a>'
             : esc_html($text)) . '</span>';
     }
 
