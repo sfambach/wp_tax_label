@@ -74,6 +74,8 @@ final class Plugin
         add_filter('taxmod_claimed_fields', [PrintersPage::class, 'claimedFields'], 10, 3);
         add_filter(LabelService::CATALOG_FILTER, LabelService::answerCatalog(...));
         add_filter(LabelService::TAKEOVER_FILTER, LabelService::answerTakeover(...), 10, 2);
+        // D-1483: a label, printer, roll, workplace or print rule opens on its own page, not in the Modeller (Stefan 21.11. 15:08).
+        add_filter('taxmod_record_home', RecordHome::answer(...), 10, 3);
         // D-1502: the line «Arbeitsplatz» in the stock's Benutzereinstellungen.
         add_filter('taxmod_user_settings', WorkplacesPage::userSetting(...));
         LabelsPage::boot();
