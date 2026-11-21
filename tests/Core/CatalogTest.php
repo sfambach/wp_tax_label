@@ -148,22 +148,22 @@ final class CatalogTest extends TestCase
     public function a_print_rule_chooses_label_and_printer_only_where_its_printer_can_print_it(): void
     {
         $rules  = new PrintRules([
-            new PrintRule(1, 'Falscher Drucker', 2, position: 10, forNode: 10, printer: 70),
-            new PrintRule(2, 'Zweiter QL', 2, position: 20, forNode: 10, copies: 3, printer: 74),
-            new PrintRule(3, 'Ohne Drucker', 2, position: 30, forNode: 10),
+            new PrintRule(1, 'Falscher Drucker', 2, position: 10, forNode: 10, node: 10, printer: 70),
+            new PrintRule(2, 'Zweiter QL', 2, position: 20, forNode: 10, node: 10, copies: 3, printer: 74),
+            new PrintRule(3, 'Ohne Drucker', 2, position: 30, forNode: 10, node: 10),
         ]);
         $labels = $this->withPrinters(true)->withRules($rules, RuleBookStandIn::closure());
 
         // D-1519: 70's roll does not allow label 2 — that rule cannot print here and the next one decides.
-        self::assertSame(['id' => 2, 'name' => 'Zweiter QL', 'label' => 2, 'copies' => 3, 'printer' => 74], $labels->ruleFor(['nodes' => [10]]));
+        self::assertSame(['id' => 2, 'name' => 'Zweiter QL', 'label' => 2, 'copies' => 3, 'printer' => 74], $labels->ruleFor(['nodes' => [10], 'groups' => [10]]));
         self::assertSame('Zweiter_QL', $labels->preferring(74)->get(2)['printer']['queue'], 'the rule\'s printer starts the dialog');
         self::assertSame([74, 70, 71], array_keys($labels->preferring(74)->printerList()));
         self::assertSame($labels, $labels->preferring(99), 'a printer that is not here changes nothing');
-        self::assertNull($labels->ruleFor(['nodes' => [11]]), 'no rule for it: the way of today');
+        self::assertNull($labels->ruleFor(['nodes' => [11], 'groups' => [11]]), 'no rule for it: the way of today');
 
         $place = $labels->at(new Workplace(500, 'EG', [71], 71));
-        self::assertSame(3, $place->ruleFor(['nodes' => [10]])['id'] ?? 0, 'at a workplace without printer 74 the rule naming it does not hold; one without a printer does');
-        self::assertNull($this->withPrinters(true)->ruleFor(['nodes' => [10]]), 'without rules there is none');
+        self::assertSame(3, $place->ruleFor(['nodes' => [10], 'groups' => [10]])['id'] ?? 0, 'at a workplace without printer 74 the rule naming it does not hold; one without a printer does');
+        self::assertNull($this->withPrinters(true)->ruleFor(['nodes' => [10], 'groups' => [10]]), 'without rules there is none');
     }
 
     #[Test]
@@ -171,14 +171,14 @@ final class CatalogTest extends TestCase
     {
         // D-1565: label 3 fits no loaded roll, label 2 only roll 81 (printers 71, 74); the catch-all (D-1563) takes what is left.
         $rules  = new PrintRules([
-            new PrintRule(1, 'Groß', 3, position: 10, forNode: 10),
-            new PrintRule(2, '62 mm', 2, position: 20, forNode: 10),
-            new PrintRule(9, 'Auffang', 1, position: 9990, forNode: 10),
+            new PrintRule(1, 'Groß', 3, position: 10, forNode: 10, node: 10),
+            new PrintRule(2, '62 mm', 2, position: 20, forNode: 10, node: 10),
+            new PrintRule(9, 'Auffang', 1, position: 9990, forNode: 10, node: 10),
         ]);
         $labels = $this->withPrinters(true)->withRules($rules, RuleBookStandIn::closure());
 
-        self::assertSame(2, $labels->ruleFor(['nodes' => [10]])['id'] ?? 0, 'no roll for label 3 anywhere: its rule does not hold');
-        self::assertSame(9, $labels->at(new Workplace(500, 'Nur Phomemo', [70], 70))->ruleFor(['nodes' => [10]])['id'] ?? 0, 'only roll 80 here: the catch-all');
+        self::assertSame(2, $labels->ruleFor(['nodes' => [10], 'groups' => [10]])['id'] ?? 0, 'no roll for label 3 anywhere: its rule does not hold');
+        self::assertSame(9, $labels->at(new Workplace(500, 'Nur Phomemo', [70], 70))->ruleFor(['nodes' => [10], 'groups' => [10]])['id'] ?? 0, 'only roll 80 here: the catch-all');
         self::assertTrue($labels->printable(2));
         self::assertFalse($labels->printable(3));
     }
@@ -188,26 +188,26 @@ final class CatalogTest extends TestCase
     {
         // D-1570: «Lagerorte · Etikett der Platzart» — label and count are the Platzart's (fields 350/351), handed in by the stock.
         $rules  = new PrintRules([
-            new PrintRule(1, 'Fest', 2, position: 10, forNode: 10, copies: 5),
-            new PrintRule(2, 'Platzart', 0, position: 20, forNode: 20, labelFrom: 350, copiesFrom: 351),
+            new PrintRule(1, 'Fest', 2, position: 10, forNode: 10, node: 10, copies: 5),
+            new PrintRule(2, 'Platzart', 0, position: 20, forNode: 20, node: 20, labelFrom: 350, copiesFrom: 351),
         ]);
         $labels = $this->withPrinters(true)->withRules($rules, RuleBookStandIn::closure());
 
-        self::assertSame(['id' => 2, 'name' => 'Platzart', 'label' => 2, 'copies' => 2, 'printer' => 0], $labels->ruleFor(['nodes' => [20], 'from' => [350 => '2', 351 => '2']]));
-        self::assertNull($labels->ruleFor(['nodes' => [20], 'from' => [350 => '2']])['copies'] ?? null, 'no count handed in: the label\'s own');
-        self::assertNull($labels->ruleFor(['nodes' => [20], 'from' => [350 => '3']]), 'the Platzart\'s label fits no loaded roll (D-1565)');
-        self::assertNull($labels->ruleFor(['nodes' => [20]]), 'nothing handed in: no label, no rule');
-        self::assertSame(5, $labels->ruleFor(['nodes' => [10], 'from' => [350 => '3']])['copies'] ?? 0, 'a fixed label and count go before the field');
+        self::assertSame(['id' => 2, 'name' => 'Platzart', 'label' => 2, 'copies' => 2, 'printer' => 0], $labels->ruleFor(['nodes' => [20], 'groups' => [20], 'from' => [350 => '2', 351 => '2']]));
+        self::assertNull($labels->ruleFor(['nodes' => [20], 'groups' => [20], 'from' => [350 => '2']])['copies'] ?? null, 'no count handed in: the label\'s own');
+        self::assertNull($labels->ruleFor(['nodes' => [20], 'groups' => [20], 'from' => [350 => '3']]), 'the Platzart\'s label fits no loaded roll (D-1565)');
+        self::assertNull($labels->ruleFor(['nodes' => [20], 'groups' => [20]]), 'nothing handed in: no label, no rule');
+        self::assertSame(5, $labels->ruleFor(['nodes' => [10], 'groups' => [10], 'from' => [350 => '3']])['copies'] ?? 0, 'a fixed label and count go before the field');
     }
 
     #[Test]
     public function a_print_rule_for_a_workplace_holds_only_there(): void
     {
-        $labels = $this->withPrinters(true)->withRules(new PrintRules([new PrintRule(1, 'Nur EG', 2, workplace: 500)]), RuleBookStandIn::closure());
+        $labels = $this->withPrinters(true)->withRules(new PrintRules([new PrintRule(1, 'Nur EG', 2, workplace: 500, node: 1)]), RuleBookStandIn::closure());
 
-        self::assertNull($labels->ruleFor([]), 'no workplace chosen');
-        self::assertSame(1, $labels->at(new Workplace(500, 'EG', [71]))->ruleFor([])['id'] ?? 0);
-        self::assertNull($labels->at(new Workplace(501, 'OG', [71]))->ruleFor([]));
+        self::assertNull($labels->ruleFor(['groups' => [1]]), 'no workplace chosen');
+        self::assertSame(1, $labels->at(new Workplace(500, 'EG', [71]))->ruleFor(['groups' => [1]])['id'] ?? 0);
+        self::assertNull($labels->at(new Workplace(501, 'OG', [71]))->ruleFor(['groups' => [1]]));
     }
 
     #[Test]

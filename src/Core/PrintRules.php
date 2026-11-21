@@ -104,8 +104,8 @@ final class PrintRules
     }
 
     /**
-     * The rules as the rule book takes them. A rule without a label — its own or one read from a field (D-1570) — never holds, so it
-     * is not handed in.
+     * The rules as the rule book takes them. A rule without a label — its own or one read from a field (D-1570) — never holds, and
+     * neither does one without a node (D-1563(3)); so neither is handed in.
      *
      * @return list<array{id: int, position: int, conditions: array<int, int>, filters: list<array{field: int, value: string, operator: string}>}>
      */
@@ -113,7 +113,8 @@ final class PrintRules
     {
         $out = [];
         foreach ($this->rules as $rule) {
-            if ($rule->label > 0 || $rule->labelFrom > 0) {
+            // D-1563(3): a rule without a node holds nothing — Live-Check 11/12 found 87590 holding by its place type alone.
+            if ($rule->node > 0 && ($rule->label > 0 || $rule->labelFrom > 0)) {
                 $out[] = ['id' => $rule->id, 'position' => $rule->position, 'conditions' => [
                     self::FOR => $rule->forNode, self::FORM => $rule->form, self::GROUP => $rule->group,
                     self::PLACE_TYPE => $rule->placeType, self::WORKPLACE => $rule->workplace, self::NODE => $rule->node,
