@@ -44,7 +44,7 @@ final class PrintRulesTest extends TestCase
     #[Test]
     public function equal_positions_keep_the_order_of_creation(): void
     {
-        $rules = new PrintRules([new PrintRule(8, 'b', 905), new PrintRule(7, 'a', 904)]);
+        $rules = new PrintRules([new PrintRule(8, 'b', 905, forNode: self::MATERIAL), new PrintRule(7, 'a', 904, forNode: self::MATERIAL)]);
 
         self::assertSame(7, self::first($rules, new PrintContext([self::MATERIAL]))?->id);
     }

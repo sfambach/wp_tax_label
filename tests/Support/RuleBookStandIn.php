@@ -4,7 +4,7 @@ namespace TaxmodLabel\Tests\Support;
 
 /**
  * The modeller's rule book (`Taxmod\Core\Rules\RuleBook`, D-1541) for the core tests, which load no modeller: by position, then
- * id, the first rule whose every set condition is in its list. The module's code never decides this itself — it asks
+ * id, the first rule whose every set condition is in its list; a rule that sets none holds nothing (D-1563 (3)). The module's code never decides this itself — it asks
  * `ModelDoor::firstRule`, and the modeller's `rule-book-check` holds the door to the real book.
  */
 final class RuleBookStandIn
@@ -17,7 +17,7 @@ final class RuleBookStandIn
     {
         usort($book, static fn (array $a, array $b): int => [$a['position'], $a['id']] <=> [$b['position'], $b['id']]);
         foreach ($book as $rule) {
-            $holds = array_filter($rule['conditions'], static fn (int $node, int $key): bool => $node !== 0 && ! in_array($node, $context[$key] ?? [], true), ARRAY_FILTER_USE_BOTH) === [];
+            $holds = array_filter($rule['conditions']) !== [] && array_filter($rule['conditions'], static fn (int $node, int $key): bool => $node !== 0 && ! in_array($node, $context[$key] ?? [], true), ARRAY_FILTER_USE_BOTH) === [];
             if ($holds && ($usable === null || $usable($rule['id']))) {
                 return $rule['id'];
             }
