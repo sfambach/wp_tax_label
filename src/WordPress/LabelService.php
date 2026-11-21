@@ -4,6 +4,7 @@ namespace TaxmodLabel\WordPress;
 
 use Taxmod\Core\Exception\DomainError;
 use Taxmod\WordPress\ModelDoor;
+use Taxmod\Core\Exception\ModelDoorRefused;
 use TaxmodLabel\Core\Drawing\Picture;
 use TaxmodLabel\Core\LabelCatalog;
 use TaxmodLabel\Core\LabelChanges;
@@ -12,6 +13,7 @@ use TaxmodLabel\Core\PrinterMedia;
 use TaxmodLabel\Core\PrintRules;
 use TaxmodLabel\Core\Structure;
 use TaxmodLabel\Core\Table;
+use TaxmodLabel\Core\UnitAmounts;
 use TaxmodLabel\Core\Workplace;
 
 /**
@@ -121,7 +123,7 @@ final class LabelService
         $nodeOf     = $this->door->recordsOf(array_merge([$root], array_keys($categories)), 500);
 
         return $this->records = [
-            'table'      => new Table($nodeOf === [] ? [] : $this->door->valuesOf(array_keys($nodeOf))),
+            'table'      => $this->measured(new Table($nodeOf === [] ? [] : $this->door->valuesOf(array_keys($nodeOf)))),
             'categories' => $categories,
             'node_of'    => $nodeOf,
             'root'       => $root,
@@ -238,7 +240,21 @@ final class LabelService
     {
         $id = $this->structure()->node($node);
 
-        return $this->tables[$id] ??= new Table($this->door->records($id));
+        return $this->tables[$id] ??= $this->measured(new Table($this->door->records($id)));
+    }
+
+    /**
+     * Feldkatalog 9/10/12: sizes stored as unit values read in the module's unit, all of a table in one read (CD-7); a modeller
+     * that does not convert yet leaves the plain numbers as they are.
+     */
+    private function measured(Table $table): Table
+    {
+        $fields = UnitAmounts::fields($this->structure());
+        if ($table->ids() === [] || $fields === [] || ! method_exists($this->door, 'amountsOf')) {
+            return $table;
+        }
+
+        return UnitAmounts::into($this->structure(), $table, $this->door->amountsOf($table->ids(), $fields));
     }
 
     public function rollTable(): ?Table
@@ -295,14 +311,20 @@ final class LabelService
     {
         $records = $this->records();
         $changes = new LabelChanges($this->structure());
+        // Feldkatalog 9/10/12: a size whose field holds unit values goes through the modeller, which writes the part.
+        $amountFields = method_exists($this->door, 'amountFields') ? $this->door->amountFields($changes->sizeFields()) : [];
+        $amounts      = $amountFields === [] ? [] : $changes->amounts($given, $amountFields);
         if ($label > 0) {
             if (! isset($records['node_of'][$label])) {
                 throw LabelError::notALabel('#' . $label);
             }
-            $list = $changes->update($label, $given, $rolls, $this->rollTable());
-            if ($list !== []) {
-                $this->door->write($list);
-            }
+            $list = $changes->update($label, $given, $rolls, $this->rollTable(), $amountFields);
+            ModelDoor::inAct(function () use ($list, $label, $amounts): void {
+                if ($list !== []) {
+                    $this->door->write($list);
+                }
+                $this->putAmounts($label, $amounts);
+            });
             $this->forget();
 
             return $label;
@@ -310,10 +332,31 @@ final class LabelService
         if ($node !== $records['root'] && ! isset($records['categories'][$node])) {
             throw LabelError::notALabel('node ' . $node);
         }
-        $answer = $this->door->write($changes->create($node, $given, $rolls ?? [], $this->rollTable()));
+        $created = ModelDoor::inAct(function () use ($changes, $node, $given, $rolls, $amountFields, $amounts): int {
+            $answer = $this->door->write($changes->create($node, $given, $rolls ?? [], $this->rollTable(), $amountFields));
+            $id     = (int) ($answer['refs']['etikett'] ?? 0);
+            $this->putAmounts($id, $amounts);
+
+            return $id;
+        });
         $this->forget();
 
-        return (int) ($answer['refs']['etikett'] ?? 0);
+        return (int) $created['result'];
+    }
+
+    /**
+     * @param array<int, float> $amounts field ⇒ metres
+     */
+    private function putAmounts(int $label, array $amounts): void
+    {
+        foreach ($label > 0 ? $amounts : [] as $field => $metres) {
+            try {
+                $this->door->putAmount($label, $field, $metres);
+            } catch (ModelDoorRefused) {
+                // A plain number field after all, or a unit the modeller does not take without converting: the number, as before.
+                $this->door->write([['op' => 'set_values', 'record' => (string) $label, 'values' => [(string) $field => (string) (int) round($metres * UnitAmounts::MILLIMETRE)]]]);
+            }
+        }
     }
 
     /** A label removed, and out of every roll that allowed it; refused while something else prints with it. */

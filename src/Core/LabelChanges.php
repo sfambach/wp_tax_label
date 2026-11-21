@@ -28,13 +28,18 @@ final class LabelChanges
     {
     }
 
+    /** The sizes, in millimetres. */
+    public const SIZES = ['width', 'height', 'roll'];
+
     /**
      * The values a caller gave, by field id; a key the model has no field for is left out, a size must be a whole number above 0.
+     * Feldkatalog 9/10/12: a size whose field holds unit values is left out here — {@see self::amounts()} gives it.
      *
      * @param array<string, mixed> $given name, key, width, height, roll, copies, layout
+     * @param list<int> $amountFields the fields that hold unit values
      * @return array<string, string> field id ⇒ text
      */
-    public function values(array $given): array
+    public function values(array $given, array $amountFields = []): array
     {
         $out = [];
         foreach (self::FIELDS as $name => $key) {
@@ -48,6 +53,9 @@ final class LabelChanges
             if ($name === 'name' && $value === '') {
                 throw LabelError::withoutName();
             }
+            if (in_array($name, self::SIZES, true) && in_array($this->structure->field($key), $amountFields, true)) {
+                continue;
+            }
             $out[(string) $this->structure->field($key)] = $value;
         }
 
@@ -55,13 +63,43 @@ final class LabelChanges
     }
 
     /**
+     * Feldkatalog 9/10/12: the sizes given for fields that hold unit values, in the base unit metre — the modeller writes the part.
+     * An empty size is left out; a size that is no whole number above 0 is refused as in {@see self::values()}.
+     *
+     * @param array<string, mixed> $given
+     * @param list<int> $amountFields
+     * @return array<int, float> field id ⇒ metres
+     */
+    public function amounts(array $given, array $amountFields): array
+    {
+        $this->values(array_intersect_key($given, array_flip(self::SIZES)));
+        $out = [];
+        foreach (self::SIZES as $name) {
+            $key   = self::FIELDS[$name];
+            $value = is_scalar($given[$name] ?? null) ? trim((string) $given[$name]) : '';
+            if ($value !== '' && $this->structure->hasField($key) && in_array($this->structure->field($key), $amountFields, true)) {
+                $out[$this->structure->field($key)] = (int) $value / UnitAmounts::MILLIMETRE;
+            }
+        }
+
+        return $out;
+    }
+
+    /** @return list<int> the size fields this model has, to ask which of them hold unit values */
+    public function sizeFields(): array
+    {
+        return array_values(array_map(fn (string $name): int => $this->structure->field(self::FIELDS[$name]), array_filter(self::SIZES, fn (string $name): bool => $this->structure->hasField(self::FIELDS[$name]))));
+    }
+
+    /**
      * A new label in a category of «Etiketten» (or «Etiketten» itself); it answers the ref «etikett».
      *
      * @param array<string, mixed> $given
      * @param list<int> $rolls the rolls that allow it from now on
+     * @param list<int> $amountFields the fields that hold unit values, written apart ({@see self::amounts()})
      * @return list<array<string, mixed>>
      */
-    public function create(int $node, array $given, array $rolls = [], ?Table $rollTable = null): array
+    public function create(int $node, array $given, array $rolls = [], ?Table $rollTable = null, array $amountFields = []): array
     {
         if (trim((string) ($given['name'] ?? '')) === '') {
             throw LabelError::withoutName();
@@ -70,7 +108,7 @@ final class LabelChanges
         return array_merge(
             [
                 ['op' => 'create_record', 'ref' => 'etikett', 'node' => (string) $node],
-                ['op' => 'set_values', 'record' => '@etikett', 'values' => $this->values($given)],
+                ['op' => 'set_values', 'record' => '@etikett', 'values' => $this->values($given, $amountFields)],
             ],
             $this->allowOn('@etikett', $rolls, $rollTable),
         );
@@ -81,9 +119,9 @@ final class LabelChanges
      * @param list<int>|null $rolls exactly the rolls that allow it from now on — it leaves the others; null: the rolls stay as they are
      * @return list<array<string, mixed>>
      */
-    public function update(int $label, array $given, ?array $rolls = null, ?Table $rollTable = null): array
+    public function update(int $label, array $given, ?array $rolls = null, ?Table $rollTable = null, array $amountFields = []): array
     {
-        $values  = $this->values($given);
+        $values  = $this->values($given, $amountFields);
         $changes = $values === [] ? [] : [['op' => 'set_values', 'record' => (string) $label, 'values' => $values]];
         if ($rolls === null) {
             return $changes;
