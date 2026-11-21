@@ -10,14 +10,19 @@ namespace TaxmodLabel\Tests\Support;
 final class RuleBookStandIn
 {
     /**
-     * @param list<array{id: int, position: int, conditions: array<int, int>}> $book
-     * @param array<int, list<int>> $context
+     * @param list<array{id: int, position: int, conditions: array<int, int>, filters?: list<array{field: int, value: string, operator?: string}>}> $book
+     * @param array<int, list<int>>    $context
+     * @param array<int, list<string>> $values field → the thing's values; a filter holds when its value is among them (the book's
+     *                                         «gleich», and «liegt unter» for values handed in with every place above)
      */
-    public static function first(array $book, array $context, ?\Closure $usable = null): ?int
+    public static function first(array $book, array $context, ?\Closure $usable = null, array $values = []): ?int
     {
         usort($book, static fn (array $a, array $b): int => [$a['position'], $a['id']] <=> [$b['position'], $b['id']]);
         foreach ($book as $rule) {
             $holds = array_filter($rule['conditions']) !== [] && array_filter($rule['conditions'], static fn (int $node, int $key): bool => $node !== 0 && ! in_array($node, $context[$key] ?? [], true), ARRAY_FILTER_USE_BOTH) === [];
+            foreach ($rule['filters'] ?? [] as $filter) {
+                $holds = $holds && in_array($filter['value'], $values[$filter['field']] ?? [], true);
+            }
             if ($holds && ($usable === null || $usable($rule['id']))) {
                 return $rule['id'];
             }
@@ -26,9 +31,18 @@ final class RuleBookStandIn
         return null;
     }
 
-    /** As the catalog takes it. */
-    public static function closure(): \Closure
+    /**
+     * As the catalog takes it; `$materials` stands in for the material values the boundary reads.
+     *
+     * @param array<int, array<int, list<string>>> $materials record → field → values
+     */
+    public static function closure(array $materials = []): \Closure
     {
-        return static fn (array $book, array $context, \Closure $usable, int $record = 0, array $fields = []): ?int => self::first($book, $context, $usable);
+        return static fn (array $book, array $context, \Closure $usable, int $record = 0, array $fields = [], array $stock = []): ?int => self::first(
+            $book,
+            $context,
+            $usable,
+            \TaxmodLabel\Core\PrintRules::valuesWith(array_intersect_key($materials[$record] ?? [], array_flip($fields)), $stock)
+        );
     }
 }

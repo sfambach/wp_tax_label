@@ -209,11 +209,11 @@ final class LabelService
     public function dialogCatalog(): LabelCatalog
     {
         // D-1541: which rule holds is the modeller's one rule book, never this module's.
-        return $this->catalog()->at($this->workplace())->withRules($this->rules(), fn (array $book, array $context, \Closure $usable, int $record = 0, array $fields = []): ?int => $this->door->firstRule(
+        return $this->catalog()->at($this->workplace())->withRules($this->rules(), fn (array $book, array $context, \Closure $usable, int $record = 0, array $fields = [], array $stock = []): ?int => $this->door->firstRule(
             $book,
             $context,
-            // D-1548: only the fields a filter reads, of the one material.
-            $record > 0 ? array_intersect_key($this->door->valuesOf([$record])[$record] ?? [], array_flip($fields)) : [],
+            // D-1548: only the fields a filter reads, of the one material; D-1576: with what the stock handed in for them.
+            PrintRules::valuesWith($record > 0 ? array_intersect_key($this->door->valuesOf([$record])[$record] ?? [], array_flip($fields)) : [], $stock),
             $usable
         ));
     }

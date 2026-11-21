@@ -201,6 +201,34 @@ final class CatalogTest extends TestCase
     }
 
     #[Test]
+    public function the_smd_label_holds_only_for_what_lies_in_the_box_its_filter_names(): void
+    {
+        // D-1576: «nur smd componenten die in the smd r&C box kommen» — Bauform SMD (field 555) and «Lagerort liegt unter» the box
+        // (field 120, value 2); everything else falls to the 40×30 catch-all. The box id is data, the stock hands in where lots lie.
+        $rules  = new PrintRules([
+            new PrintRule(1, 'SMD', 2, position: 10, forNode: 10, node: 10, filters: [
+                ['field' => 555, 'value' => 'SMD', 'operator' => PrintRules::EQUALS], ['field' => 120, 'value' => '2', 'operator' => 'below']]),
+            new PrintRule(9, '40×30', 1, position: 9990, forNode: 10, node: 10),
+        ]);
+        $labels = $this->withPrinters(true)->withRules($rules, RuleBookStandIn::closure([700 => [555 => ['SMD']], 701 => [555 => ['THT']]]));
+        $ask    = static fn (int $record, array $more = []): int => $labels->ruleFor(['nodes' => [10], 'groups' => [10], 'record' => $record] + $more)['id'] ?? 0;
+
+        self::assertSame(1, $ask(700, ['stock' => [120 => ['4', '2', '1']]]), 'a lot in a compartment of the box');
+        self::assertSame(1, $ask(700, ['stock' => [120 => ['5', '2', '1']]]), 'a material: one of its lots lies in the box');
+        self::assertSame(9, $ask(700, ['stock' => [120 => ['5']]]), 'an SMD part elsewhere: 40×30');
+        self::assertSame(9, $ask(700), 'a material without lots: the filter does not hold, 40×30');
+        self::assertSame(9, $ask(701, ['stock' => [120 => ['2']]]), 'not SMD, even in the box');
+        self::assertSame(9, $ask(700, ['stock' => [999 => ['2']]]), 'stock for a field no filter reads changes nothing');
+    }
+
+    #[Test]
+    public function the_stock_values_join_the_materials_own(): void
+    {
+        self::assertSame([120 => ['7', '2'], 555 => ['SMD']], PrintRules::valuesWith([120 => ['7'], 555 => ['SMD']], [120 => ['2']]));
+        self::assertSame([555 => ['SMD'], 120 => ['2']], PrintRules::valuesWith([555 => ['SMD']], [120 => ['2']]));
+    }
+
+    #[Test]
     public function a_print_rule_for_a_workplace_holds_only_there(): void
     {
         $labels = $this->withPrinters(true)->withRules(new PrintRules([new PrintRule(1, 'Nur EG', 2, workplace: 500, node: 1)]), RuleBookStandIn::closure());
