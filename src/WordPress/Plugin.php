@@ -27,7 +27,7 @@ use TaxmodLabel\WordPress\Admin\WorkplacesPage;
  */
 final class Plugin
 {
-    public const VERSION = '0.0.42';
+    public const VERSION = '0.0.43';
 
     /** D-1295: labelValues and queuePrint came with 0.2.61; DialogNumber since 0.2.133 (D-1431); button/iconButton/listBar since 0.2.172 (D-1500); several roots of a choice since 0.2.200 (D-1546); the one rules page since 0.2.206 (D-1558). */
     public const MIN_MODELLER = '0.2.206';
@@ -74,6 +74,8 @@ final class Plugin
         add_filter('taxmod_claimed_fields', [PrintersPage::class, 'claimedFields'], 10, 3);
         add_filter(LabelService::CATALOG_FILTER, LabelService::answerCatalog(...));
         add_filter(LabelService::TAKEOVER_FILTER, LabelService::answerTakeover(...), 10, 2);
+        // D-1483: a label, printer, roll, workplace or print rule opens on its own page, not in the Modeller (Stefan 21.11. 15:08).
+        add_filter('taxmod_record_home', RecordHome::answer(...), 10, 3);
         // D-1502: the line «Arbeitsplatz» in the stock's Benutzereinstellungen.
         add_filter('taxmod_user_settings', WorkplacesPage::userSetting(...));
         LabelsPage::boot();
