@@ -23,12 +23,15 @@ final class PrintContext
         public readonly int $workplace = 0,
         /** D-1548: the material record, whose values the filters read; 0 for a place */
         public readonly int $record = 0,
+        /** @var array<int, string> D-1570: values the module hands in for a rule that reads its label from a field — field → value */
+        public readonly array $from = [],
     ) {
     }
 
     /**
      * From what a module asks with (D-1296: the stock does not know this class): `nodes`, `forms`, `groups` (lists of node ids,
-     * nearest first), `place_type` and `record` (the material, D-1548); the workplace is the catalog's own.
+     * nearest first), `place_type`, `record` (the material, D-1548) and `from` (field → value, D-1570); the workplace is the
+     * catalog's own.
      *
      * @param array<string, mixed> $asked
      */
@@ -36,6 +39,13 @@ final class PrintContext
     {
         $ids = static fn (string $key): array => array_values(array_filter(array_map('intval', is_array($asked[$key] ?? null) ? $asked[$key] : [])));
 
-        return new self($ids('nodes'), $ids('forms'), $ids('groups'), (int) ($asked['place_type'] ?? 0), $workplace, (int) ($asked['record'] ?? 0));
+        $from = [];
+        foreach (is_array($asked['from'] ?? null) ? $asked['from'] : [] as $field => $value) {
+            if ((int) $field > 0 && is_scalar($value)) {
+                $from[(int) $field] = (string) $value;
+            }
+        }
+
+        return new self($ids('nodes'), $ids('forms'), $ids('groups'), (int) ($asked['place_type'] ?? 0), $workplace, (int) ($asked['record'] ?? 0), $from);
     }
 }

@@ -26,6 +26,32 @@ final class PrintRule
         public readonly int $node = 0,
         /** @var list<array{field: int, value: string, operator: string}> D-1548: filters «Feld · Operator · Wert», shared with the test rules */
         public readonly array $filters = [],
+        /** D-1570: the field whose value is the label, where the rule names none itself */
+        public readonly int $labelFrom = 0,
+        /** D-1570: the field whose value is the count, where the rule names none itself */
+        public readonly int $copiesFrom = 0,
     ) {
+    }
+
+    /**
+     * D-1570: the rule's own label first; without one, the value of the field it names, as the module hands it in.
+     *
+     * @param array<int, string> $from field → value
+     */
+    public function labelFor(array $from): int
+    {
+        return $this->label > 0 ? $this->label : ($this->labelFrom > 0 ? (int) ($from[$this->labelFrom] ?? 0) : 0);
+    }
+
+    /**
+     * D-1570: the rule's own count first; without one, the value of the field it names; null: the label's own.
+     *
+     * @param array<int, string> $from field → value
+     */
+    public function copiesFor(array $from): ?int
+    {
+        $from = $this->copiesFrom > 0 ? (int) ($from[$this->copiesFrom] ?? 0) : 0;
+
+        return $this->copies ?? ($from > 0 ? $from : null);
     }
 }

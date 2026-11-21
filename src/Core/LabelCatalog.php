@@ -268,20 +268,21 @@ final class LabelCatalog
         if ($rules === null || $this->firstRule === null || $rules->isEmpty()) {
             return null;
         }
-        $usable = function (int $id) use ($rules): bool {
-            $r = $rules->get($id);
+        $context = PrintContext::fromArray($asked, $this->workplace);
+        $usable  = function (int $id) use ($rules, $context): bool {
+            $r     = $rules->get($id);
+            $label = $r === null ? 0 : $r->labelFor($context->from);
 
             // D-1565: a rule holds only where it can print — on its printer, or without one on some printer here.
-            return $r !== null && isset($this->templates[$r->label]) && ($r->printer === 0
-                ? $this->printable($r->label)
-                : in_array($r->label, $this->printers[$r->printer]['allows'] ?? [], true));
+            return $r !== null && isset($this->templates[$label]) && ($r->printer === 0
+                ? $this->printable($label)
+                : in_array($label, $this->printers[$r->printer]['allows'] ?? [], true));
         };
-        $context = PrintContext::fromArray($asked, $this->workplace);
         // D-1548: the filters read the material's values; the boundary reads them, once, only where a filter asks.
         $found = ($this->firstRule)($rules->book(), PrintRules::context($context), $usable, $rules->fields() === [] ? 0 : $context->record, $rules->fields());
         $rule  = $found === null ? null : $rules->get($found);
 
-        return $rule === null ? null : ['id' => $rule->id, 'name' => $rule->name, 'label' => $rule->label, 'copies' => $rule->copies, 'printer' => $rule->printer];
+        return $rule === null ? null : ['id' => $rule->id, 'name' => $rule->name, 'label' => $rule->labelFor($context->from), 'copies' => $rule->copiesFor($context->from), 'printer' => $rule->printer];
     }
 
     /** D-1565: some printer of this catalog (at a workplace: its printers) holds a roll that allows the label. */
