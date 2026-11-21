@@ -73,6 +73,8 @@ final class PrintRules
                 $int($id, 'rule_printer'),
                 $int($id, 'rule_node'),
                 $own,
+                $int($id, 'rule_label_from'),
+                $int($id, 'rule_copies_from'),
             );
         }
 
@@ -102,7 +104,8 @@ final class PrintRules
     }
 
     /**
-     * The rules as the rule book takes them. A rule without a label never holds, so it is not handed in.
+     * The rules as the rule book takes them. A rule without a label — its own or one read from a field (D-1570) — never holds, so it
+     * is not handed in.
      *
      * @return list<array{id: int, position: int, conditions: array<int, int>, filters: list<array{field: int, value: string, operator: string}>}>
      */
@@ -110,7 +113,7 @@ final class PrintRules
     {
         $out = [];
         foreach ($this->rules as $rule) {
-            if ($rule->label > 0) {
+            if ($rule->label > 0 || $rule->labelFrom > 0) {
                 $out[] = ['id' => $rule->id, 'position' => $rule->position, 'conditions' => [
                     self::FOR => $rule->forNode, self::FORM => $rule->form, self::GROUP => $rule->group,
                     self::PLACE_TYPE => $rule->placeType, self::WORKPLACE => $rule->workplace, self::NODE => $rule->node,

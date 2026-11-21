@@ -184,6 +184,23 @@ final class CatalogTest extends TestCase
     }
 
     #[Test]
+    public function a_rule_without_its_own_label_reads_label_and_count_from_the_field_it_names(): void
+    {
+        // D-1570: «Lagerorte · Etikett der Platzart» — label and count are the Platzart's (fields 350/351), handed in by the stock.
+        $rules  = new PrintRules([
+            new PrintRule(1, 'Fest', 2, position: 10, forNode: 10, copies: 5),
+            new PrintRule(2, 'Platzart', 0, position: 20, forNode: 20, labelFrom: 350, copiesFrom: 351),
+        ]);
+        $labels = $this->withPrinters(true)->withRules($rules, RuleBookStandIn::closure());
+
+        self::assertSame(['id' => 2, 'name' => 'Platzart', 'label' => 2, 'copies' => 2, 'printer' => 0], $labels->ruleFor(['nodes' => [20], 'from' => [350 => '2', 351 => '2']]));
+        self::assertNull($labels->ruleFor(['nodes' => [20], 'from' => [350 => '2']])['copies'] ?? null, 'no count handed in: the label\'s own');
+        self::assertNull($labels->ruleFor(['nodes' => [20], 'from' => [350 => '3']]), 'the Platzart\'s label fits no loaded roll (D-1565)');
+        self::assertNull($labels->ruleFor(['nodes' => [20]]), 'nothing handed in: no label, no rule');
+        self::assertSame(5, $labels->ruleFor(['nodes' => [10], 'from' => [350 => '3']])['copies'] ?? 0, 'a fixed label and count go before the field');
+    }
+
+    #[Test]
     public function a_print_rule_for_a_workplace_holds_only_there(): void
     {
         $labels = $this->withPrinters(true)->withRules(new PrintRules([new PrintRule(1, 'Nur EG', 2, workplace: 500)]), RuleBookStandIn::closure());

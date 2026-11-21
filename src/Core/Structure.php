@@ -43,6 +43,8 @@ final class Structure
         'workplace_printers', 'workplace_default_printer', 'workplace_location',
         // D-1519: a print rule — what it is for, when it holds, what it prints on which printer how often; `position` is its order.
         'position', 'rule_for', 'rule_form', 'rule_group', 'rule_place_type', 'rule_workplace', 'rule_label', 'rule_printer', 'rule_copies',
+        // D-1570: label and count read from a field of what is printed (a place's Platzart), named as data.
+        'rule_label_from', 'rule_copies_from',
         // D-1548: the rule's node and its filters, the same fields as the test rules'.
         'rule_node', 'rule_filters', 'filter_field', 'filter_value', 'filter_operator',
         // D-1552, Prüftor 21.11.: the filter's kind, and the fields a taken-over preselection filters on — Bauform, Platzart.
