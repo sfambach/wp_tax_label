@@ -24,7 +24,7 @@ final class CatalogTest extends TestCase
     {
         $templates = $this->templates();
 
-        self::assertSame(['name' => 'Platz', 'format' => ['key' => 'holder62', 'w' => 62, 'h' => 50, 'roll' => 62], 'copies' => 1, 'layout' => self::LAYOUT, 'category' => '', 'node' => 0], $templates->get(90));
+        self::assertSame(['name' => 'Platz', 'format' => ['key' => 'holder62', 'w' => 62, 'h' => 50, 'roll' => 62], 'copies' => 1, 'layout' => self::LAYOUT, 'category' => '', 'node' => 0, 'rolls' => []], $templates->get(90));
         self::assertSame(2, $templates->get(91)['copies']);
         self::assertFalse($templates->has(92), 'a template without a layout cannot print');
         self::assertFalse($templates->has(93), 'a label without a size cannot print');
@@ -53,7 +53,7 @@ final class CatalogTest extends TestCase
         self::assertTrue($labels->get(2)['printer']['turn']);
         self::assertSame(0, $labels->get(2)['printer']['pause'], 'D-1333: no pause set is no pause');
         self::assertArrayNotHasKey('printer', $labels->get(3), 'no loaded roll allows it: the print service chooses as before');
-        self::assertSame(['name' => '40×30', 'format' => $labels->get(1)['format'], 'layout' => self::LAYOUT, 'printer' => $labels->get(1)['printer'], 'record' => 5], LabelCatalog::forButton($labels->get(1), ['record' => 5]));
+        self::assertSame(['name' => '40×30', 'format' => $labels->get(1)['format'], 'layout' => self::LAYOUT, 'printer' => $labels->get(1)['printer'], 'rolls' => ['40×30 gestanzt'], 'record' => 5], LabelCatalog::forButton($labels->get(1), ['record' => 5]));
     }
 
     #[Test]
@@ -164,6 +164,23 @@ final class CatalogTest extends TestCase
         $place = $labels->at(new Workplace(500, 'EG', [71], 71));
         self::assertSame(3, $place->ruleFor(['nodes' => [10]])['id'] ?? 0, 'at a workplace without printer 74 the rule naming it does not hold; one without a printer does');
         self::assertNull($this->withPrinters(true)->ruleFor(['nodes' => [10]]), 'without rules there is none');
+    }
+
+    #[Test]
+    public function a_rule_without_printer_holds_only_where_some_printer_here_holds_a_roll_for_its_label(): void
+    {
+        // D-1565: label 3 fits no loaded roll, label 2 only roll 81 (printers 71, 74); the catch-all (D-1563) takes what is left.
+        $rules  = new PrintRules([
+            new PrintRule(1, 'Groß', 3, position: 10, forNode: 10),
+            new PrintRule(2, '62 mm', 2, position: 20, forNode: 10),
+            new PrintRule(9, 'Auffang', 1, position: 9990, forNode: 10),
+        ]);
+        $labels = $this->withPrinters(true)->withRules($rules, RuleBookStandIn::closure());
+
+        self::assertSame(2, $labels->ruleFor(['nodes' => [10]])['id'] ?? 0, 'no roll for label 3 anywhere: its rule does not hold');
+        self::assertSame(9, $labels->at(new Workplace(500, 'Nur Phomemo', [70], 70))->ruleFor(['nodes' => [10]])['id'] ?? 0, 'only roll 80 here: the catch-all');
+        self::assertTrue($labels->printable(2));
+        self::assertFalse($labels->printable(3));
     }
 
     #[Test]
