@@ -25,10 +25,13 @@ final class PrintRulesSetup
     public static function boot(): void
     {
         add_filter(RulesPage::TYPES_FILTER, static fn (array $types): array => $types + self::printType());
-        add_action('load-' . get_plugin_page_hookname(self::SLUG, 'taxmod'), static function (): void {
-            wp_safe_redirect(self::url());
-            exit;
-        });
+        // The hook's name depends on the menu, so it is asked once the menu stands.
+        add_action('admin_menu', static function (): void {
+            add_action('load-' . get_plugin_page_hookname(self::SLUG, 'taxmod'), static function (): void {
+                wp_safe_redirect(self::url());
+                exit;
+            });
+        }, 999);
     }
 
     /** The print rules on the one page, one rule opened when given. */
