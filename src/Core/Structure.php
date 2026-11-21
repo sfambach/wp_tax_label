@@ -20,7 +20,9 @@ final class Structure
     /** D-1190, D-1192: the printers and the rolls they hold; D-1502: the workplaces that name printers. */
     private const OPTIONAL_NODES = ['label_printer', 'label_roll', 'label_workplace', 'label_rule',
         // D-1548: the shared «Regel-Filter» and the operator «gleich» of its constants.
-        'label_rule_filter', 'operator_equals'];
+        'label_rule_filter', 'operator_equals',
+        // D-1552: the kinds «Feld» and «Bestand» a filter of a taken-over preselection names (Prüftor 21.11.).
+        'filter_kind_field', 'filter_kind_stock'];
 
     /** `label` is the name of a record — read here, owned by the modeller's shipped name field. */
     public const FIELDS = ['label', 'template_key', 'template_width', 'template_height', 'template_layout'];
@@ -43,6 +45,8 @@ final class Structure
         'position', 'rule_for', 'rule_form', 'rule_group', 'rule_place_type', 'rule_workplace', 'rule_label', 'rule_printer', 'rule_copies',
         // D-1548: the rule's node and its filters, the same fields as the test rules'.
         'rule_node', 'rule_filters', 'filter_field', 'filter_value', 'filter_operator',
+        // D-1552, Prüftor 21.11.: the filter's kind, and the fields a taken-over preselection filters on — Bauform, Platzart.
+        'filter_kind', 'material_form', 'location_place_type',
     ];
 
     /**
