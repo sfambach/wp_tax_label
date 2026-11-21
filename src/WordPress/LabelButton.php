@@ -599,6 +599,13 @@ final class LabelButton
         return ['html' => $html, 'hidden' => $hidden];
     }
 
+    /** No print rule holds: WordPress's own notice, with the way to the rules (Prüftor 21.11., INF-137). */
+    private static function noRule(): string
+    {
+        return wp_get_admin_notice(esc_html__('Keine Druckregel greift.', 'taxmod-label') . ' <a href="' . esc_url(Admin\PrintRulesSetup::url()) . '" target="_blank" rel="noopener">'
+            . esc_html__('Druckregeln', 'taxmod-label') . '</a>', ['type' => 'warning', 'additional_classes' => ['inline']]);
+    }
+
     /**
      * D-1565: no printer here holds a roll for the chosen label — the same notice as «Keine Druckregel greift», naming the roll it
      * needs and those loaded, with the way to «Rolle wechseln». Nothing waits for the roll.
