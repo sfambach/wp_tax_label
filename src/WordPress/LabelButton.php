@@ -131,7 +131,8 @@ final class LabelButton
                 esc_html__('Print a label', 'taxmod-label'),
                 '<span class="taxmod-dialog-body" style="display:block;padding:.75em 1em;white-space:normal;text-align:left">' . $body . '</span>',
                 $foot,
-                'button taxmod-dialog-open',
+                // Live-Check 7 (21.11.2026): the opener is a square like every other row button (D-1511 rule 3), 51 px were 32.
+                'button taxmod-square taxmod-dialog-open',
                 '',
                 __('Cancel', 'taxmod-label')
             )

@@ -42,7 +42,7 @@ final class PrintRulesSetup
         return RulesPage::url($s->hasNode('label_rule') ? $s->node('label_rule') : 0, $rule > 0 ? ['satz' => $rule] : []);
     }
 
-    /** @return array<int, array{position: int, roots: array<int, list<int>>, hint: string, one: string}> */
+    /** @return array<int, array{position: int, roots: array<int, list<int>>, hint: string, one: string, secondary: list<int>}> */
     private static function printType(): array
     {
         $s = (new LabelService())->structure();
@@ -66,6 +66,8 @@ final class PrintRulesSetup
             'roots'    => $out,
             'hint'     => __('Beim Drucken gilt die erste Regel, die passt: sie wählt das Etikett, wenn gesetzt auch Drucker und Anzahl. Leere Bedingungen passen immer. Passt keine, bleibt die Vorwahl wie bisher; ohne Drucker in der Regel beginnt der Dialog mit dem Standarddrucker des Arbeitsplatzes.', 'taxmod-label'),
             'one'      => __('Druckregel', 'taxmod-label'),
+            // Live-Check 7 (21.11.2026): label and count read from a field give way first where the list is narrow.
+            'secondary' => array_values(array_map(static fn (string $key): int => $s->field($key), array_filter(['rule_label_from', 'rule_copies_from'], static fn (string $key): bool => $s->hasField($key)))),
         ]];
     }
 }
