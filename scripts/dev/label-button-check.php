@@ -133,5 +133,10 @@ $claim('ein Dialog aus dem Katalog ohne Arbeitsplatz postet dort weiter Dokument
 
 $as(null);
 
+// 7 — Prüftor 21.11. (INF-137): no print rule holds — the dialog says so and links to the rules; without the mark it does not.
+$none = $draw(['no_rule' => true]);
+$claim('ohne greifende Druckregel nennt der Dialog das und verlinkt die Druckregeln', str_contains($none, 'Keine Druckregel greift') && str_contains($none, 'notice-warning') && str_contains($none, 'taxmod-regeln'));
+$claim('ohne die Marke kein solcher Hinweis', ! str_contains($draw([]), 'Keine Druckregel greift'));
+
 echo $failed === 0 ? "\nlabel-button-check: all claims hold\n" : "\nlabel-button-check: {$failed} claim(s) FAILED\n";
 exit($failed === 0 ? 0 : 1);

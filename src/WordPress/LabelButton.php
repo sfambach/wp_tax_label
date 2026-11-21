@@ -86,7 +86,9 @@ final class LabelButton
         do_action(Modeller::STYLE_ACTION);
 
         $label    = new LabelContent($kind->code($id), $title, $subtitle);
-        $template = self::expanded($template);
+        // Prüftor 21.11. (INF-137): a module whose print rules chose nothing says so; the dialog then names that and links to the rules.
+        $noRule   = ($template['no_rule'] ?? false) === true;
+        $template = self::expanded(array_diff_key($template, ['no_rule' => 1]));
         $chooser = self::chooser($label, $template);
         $filled = $chooser === null ? self::filled($label, $template) : null;
         $default = self::DEFAULT_FORMAT[$kind->value];
@@ -99,7 +101,7 @@ final class LabelButton
 
         // His wish 2026-11-07: «vorschaubild im druckdialog nach rechts zumindest für desktop» — options left, preview right; on a
         // narrow screen the preview stays below (assets/admin.css).
-        $body = self::panel(($chooser !== null ? $chooser['html'] : ($filled === null
+        $body = self::panel(($noRule ? self::noRule() : '') . ($chooser !== null ? $chooser['html'] : ($filled === null
                 ? '<label style="display:block;margin-bottom:.5em"><span style="display:block;font-weight:600">' . esc_html__('Format', 'taxmod-label') . '</span>'
                     . SelectMarkup::of('format', $options, $default, false) . '</label>'
                 : '<span style="display:block;margin-bottom:.5em"><span style="display:block;font-weight:600">' . esc_html__('Vorlage', 'taxmod-label') . '</span>'
@@ -594,6 +596,13 @@ final class LabelButton
             . self::chooserScript();
 
         return ['html' => $html, 'hidden' => $hidden];
+    }
+
+    /** No print rule holds: WordPress's own notice, with the way to the rules (Prüftor 21.11., INF-137). */
+    private static function noRule(): string
+    {
+        return wp_get_admin_notice(esc_html__('Keine Druckregel greift.', 'taxmod-label') . ' <a href="' . esc_url(Admin\PrintRulesSetup::url()) . '" target="_blank" rel="noopener">'
+            . esc_html__('Druckregeln', 'taxmod-label') . '</a>', ['type' => 'warning', 'additional_classes' => ['inline']]);
     }
 
     /**
