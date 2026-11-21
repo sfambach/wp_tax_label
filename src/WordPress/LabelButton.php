@@ -86,7 +86,9 @@ final class LabelButton
         do_action(Modeller::STYLE_ACTION);
 
         $label    = new LabelContent($kind->code($id), $title, $subtitle);
-        $template = self::expanded($template);
+        // Prüftor 21.11. (INF-137): a module whose print rules chose nothing says so; the dialog then names that and links to the rules.
+        $noRule   = ($template['no_rule'] ?? false) === true;
+        $template = self::expanded(array_diff_key($template, ['no_rule' => 1]));
         $chooser = self::chooser($label, $template);
         $filled = $chooser === null ? self::filled($label, $template) : null;
         $default = self::DEFAULT_FORMAT[$kind->value];
@@ -99,7 +101,7 @@ final class LabelButton
 
         // His wish 2026-11-07: «vorschaubild im druckdialog nach rechts zumindest für desktop» — options left, preview right; on a
         // narrow screen the preview stays below (assets/admin.css).
-        $body = self::panel(($chooser !== null ? $chooser['html'] : ($filled === null
+        $body = self::panel(($noRule ? self::noRule() : '') . ($chooser !== null ? $chooser['html'] : ($filled === null
                 ? '<label style="display:block;margin-bottom:.5em"><span style="display:block;font-weight:600">' . esc_html__('Format', 'taxmod-label') . '</span>'
                     . SelectMarkup::of('format', $options, $default, false) . '</label>'
                 : '<span style="display:block;margin-bottom:.5em"><span style="display:block;font-weight:600">' . esc_html__('Vorlage', 'taxmod-label') . '</span>'
@@ -584,7 +586,8 @@ final class LabelButton
             $hidden .= '<input type="hidden" name="printers[' . (int) $id . ']" value="' . esc_attr((string) json_encode($printer)) . '">';
         }
 
-        $html = '<label style="display:block;margin-bottom:.5em"><span style="display:block;font-weight:600">' . esc_html__('Etikett', 'taxmod-label') . '</span>'
+        $html = self::wrongRoll(is_array($choices[$chosen] ?? null) ? $choices[$chosen] : [], $chosen, $printers)
+            . '<label style="display:block;margin-bottom:.5em"><span style="display:block;font-weight:600">' . esc_html__('Etikett', 'taxmod-label') . '</span>'
             . '<select name="choice" data-taxmod-label-choice>' . $labels . '</select>'
             // D-1284: the module says where the preselected label comes from (a Bauform, a group), shown beneath the choice.
             . self::origin($template)
@@ -594,6 +597,43 @@ final class LabelButton
             . self::chooserScript();
 
         return ['html' => $html, 'hidden' => $hidden];
+    }
+
+    /**
+     * D-1565: no printer here holds a roll for the chosen label — the same notice as «Keine Druckregel greift», naming the roll it
+     * needs and those loaded, with the way to «Rolle wechseln». Nothing waits for the roll.
+     *
+     * @param array<string, mixed>             $choice
+     * @param array<int, array<string, mixed>> $printers
+     */
+    private static function wrongRoll(array $choice, int $chosen, array $printers): string
+    {
+        $needs = array_values(array_filter(array_map('strval', is_array($choice['rolls'] ?? null) ? $choice['rolls'] : [])));
+        if ($printers === [] || $needs === []) {
+            return '';
+        }
+        $loaded = [];
+        foreach ($printers as $printer) {
+            if (in_array($chosen, array_map('intval', (array) ($printer['allows'] ?? [])), true)) {
+                return '';
+            }
+            $loaded[] = trim((string) ($printer['roll_name'] ?? ''));
+        }
+
+        return wp_get_admin_notice(esc_html(sprintf(
+            /* translators: 1: label, 2: roll(s) it needs, 3: roll(s) loaded */
+            __('«%1$s» braucht Rolle %2$s, eingelegt: %3$s.', 'taxmod-label'),
+            (string) ($choice['name'] ?? '#' . $chosen),
+            implode(' / ', $needs),
+            implode(', ', array_unique(array_filter($loaded))) ?: '—'
+        )) . ' <a href="' . esc_url(Admin\PrintersPage::url()) . '" target="_blank" rel="noopener">' . esc_html__('Rolle wechseln', 'taxmod-label') . '</a>', ['type' => 'warning', 'additional_classes' => ['inline']]);
+    }
+
+    /** No print rule holds: WordPress's own notice, with the way to the rules (Prüftor 21.11., INF-137). */
+    private static function noRule(): string
+    {
+        return wp_get_admin_notice(esc_html__('Keine Druckregel greift.', 'taxmod-label') . ' <a href="' . esc_url(Admin\PrintRulesSetup::url()) . '" target="_blank" rel="noopener">'
+            . esc_html__('Druckregeln', 'taxmod-label') . '</a>', ['type' => 'warning', 'additional_classes' => ['inline']]);
     }
 
     /**

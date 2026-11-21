@@ -50,6 +50,7 @@ final class LabelCatalog
         $text = static fn (int $id, string $field): string => $s->hasField($field) ? trim((string) $labels->first($id, $s->field($field))) : '';
         $out  = [];
         $all    = self::printers($s, $printers, $rolls, $pauses);
+        $rollsOf = self::rollsOf($s, $rolls);
 
         foreach ($labels->ids() as $id) {
             $key    = $text($id, 'template_key');
@@ -67,6 +68,8 @@ final class LabelCatalog
                 'layout' => $layout,
                 'category' => $categoryOf[$id] ?? '',
                 'node'     => $nodeOf[$id] ?? 0,
+                // D-1565: the rolls that allow it, so the dialog can say which one to load.
+                'rolls'    => $rollsOf[$id] ?? [],
             ];
             // D-1192: the first printer (by name) whose loaded roll allows this label is the one the dialog starts with.
             foreach ($all as $printer) {
@@ -118,6 +121,27 @@ final class LabelCatalog
             ];
         }
         uasort($out, static fn (array $a, array $b): int => strnatcasecmp($a['name'], $b['name']));
+
+        return $out;
+    }
+
+    /**
+     * D-1565: label id → the names of the rolls that allow it, from the rolls read once.
+     *
+     * @return array<int, list<string>>
+     */
+    private static function rollsOf(Structure $s, ?Table $rolls): array
+    {
+        if ($rolls === null || ! $s->hasField('roll_labels')) {
+            return [];
+        }
+        $out = [];
+        foreach ($rolls->ids() as $roll) {
+            $name = trim((string) ($rolls->first($roll, $s->field('label')) ?? '')) ?: '#' . $roll;
+            foreach (array_map('intval', $rolls->all($roll, $s->field('roll_labels'))) as $label) {
+                $out[$label][] = $name;
+            }
+        }
 
         return $out;
     }
@@ -247,7 +271,10 @@ final class LabelCatalog
         $usable = function (int $id) use ($rules): bool {
             $r = $rules->get($id);
 
-            return $r !== null && isset($this->templates[$r->label]) && ($r->printer === 0 || in_array($r->label, $this->printers[$r->printer]['allows'] ?? [], true));
+            // D-1565: a rule holds only where it can print — on its printer, or without one on some printer here.
+            return $r !== null && isset($this->templates[$r->label]) && ($r->printer === 0
+                ? $this->printable($r->label)
+                : in_array($r->label, $this->printers[$r->printer]['allows'] ?? [], true));
         };
         $context = PrintContext::fromArray($asked, $this->workplace);
         // D-1548: the filters read the material's values; the boundary reads them, once, only where a filter asks.
@@ -255,6 +282,18 @@ final class LabelCatalog
         $rule  = $found === null ? null : $rules->get($found);
 
         return $rule === null ? null : ['id' => $rule->id, 'name' => $rule->name, 'label' => $rule->label, 'copies' => $rule->copies, 'printer' => $rule->printer];
+    }
+
+    /** D-1565: some printer of this catalog (at a workplace: its printers) holds a roll that allows the label. */
+    public function printable(int $label): bool
+    {
+        foreach ($this->printers as $printer) {
+            if (in_array($label, $printer['allows'] ?? [], true)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /** D-1519: the same labels with `$printer` first — the printer a rule names; unchanged where it is not one of these. */
@@ -301,7 +340,7 @@ final class LabelCatalog
     public static function forButton(array $template, array $more = []): array
     {
         return ['name' => $template['name'], 'format' => $template['format'], 'layout' => $template['layout']]
-            + (isset($template['printer']) ? ['printer' => $template['printer']] : []) + $more;
+            + (isset($template['printer']) ? ['printer' => $template['printer']] : []) + (($template['rolls'] ?? []) === [] ? [] : ['rolls' => $template['rolls']]) + $more;
     }
 
     /**
