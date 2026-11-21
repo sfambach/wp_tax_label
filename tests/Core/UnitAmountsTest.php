@@ -5,6 +5,8 @@ namespace TaxmodLabel\Tests\Core;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use TaxmodLabel\Core\LabelCatalog;
+use TaxmodLabel\Core\LabelChanges;
+use TaxmodLabel\Core\LabelError;
 use TaxmodLabel\Core\Structure;
 use TaxmodLabel\Core\Table;
 use TaxmodLabel\Core\UnitAmounts;
@@ -51,5 +53,22 @@ final class UnitAmountsTest extends TestCase
         $table = new Table([1 => [354 => ['62']]]);
 
         self::assertSame($table, UnitAmounts::into($this->structure(), $table, []), 'an older modeller: nothing converted');
+    }
+
+    #[Test]
+    public function a_size_is_written_as_number_or_handed_to_the_modeller_as_metres(): void
+    {
+        $changes = new LabelChanges($this->structure());
+        $given   = ['name' => 'Neu', 'width' => '62', 'height' => '30', 'roll' => ''];
+
+        self::assertSame([354, 355, 356], $changes->sizeFields());
+        // Before the data job: plain numbers, as today.
+        self::assertSame(['1' => 'Neu', '354' => '62', '355' => '30', '356' => ''], $changes->values($given));
+        self::assertSame([], $changes->amounts($given, []));
+        // After it: width and height are unit values — out of the change list, handed over in metres; an empty roll is left.
+        self::assertSame(['1' => 'Neu', '356' => ''], $changes->values($given, [354, 355]));
+        self::assertSame([354 => 0.062, 355 => 0.03], $changes->amounts($given, [354, 355, 356]));
+        $this->expectException(LabelError::class);
+        $changes->amounts(['width' => '6,2'], [354]);
     }
 }
