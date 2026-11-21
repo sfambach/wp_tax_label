@@ -248,7 +248,8 @@ final class LabelCatalog
      * decides which holds (at the boundary `ModelDoor::firstRule`).
      *
      * @param \Closure(list<array{id: int, position: int, conditions: array<int, int>}>, array<int, list<int>>, \Closure(int): bool, int, list<int>): ?int $firstRule
-     *        the book, the context, the further test, the material record (0: none) and the fields its filters read
+     *        the book, the context, the further test, the material record (0: none), the fields its filters read and the stock's
+     *        values for them (D-1576)
      */
     public function withRules(PrintRules $rules, \Closure $firstRule): self
     {
@@ -279,7 +280,9 @@ final class LabelCatalog
                 : in_array($label, $this->printers[$r->printer]['allows'] ?? [], true));
         };
         // D-1548: the filters read the material's values; the boundary reads them, once, only where a filter asks.
-        $found = ($this->firstRule)($rules->book(), PrintRules::context($context), $usable, $rules->fields() === [] ? 0 : $context->record, $rules->fields());
+        // D-1576: what the module hands in of the stock (where its lots lie) is read by the filters alongside.
+        $fields = $rules->fields();
+        $found  = ($this->firstRule)($rules->book(), PrintRules::context($context), $usable, $fields === [] ? 0 : $context->record, $fields, array_intersect_key($context->stock, array_flip($fields)));
         $rule  = $found === null ? null : $rules->get($found);
 
         return $rule === null ? null : ['id' => $rule->id, 'name' => $rule->name, 'label' => $rule->labelFor($context->from), 'copies' => $rule->copiesFor($context->from), 'printer' => $rule->printer];

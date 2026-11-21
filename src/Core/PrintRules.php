@@ -141,6 +141,22 @@ final class PrintRules
         ];
     }
 
+    /**
+     * D-1576: the material's values for the filters, with what the module handed in of the stock added to each field.
+     *
+     * @param array<int, list<string>> $own   field → the material's values
+     * @param array<int, list<string>> $stock field → the stock's values, e.g. where its lots lie
+     * @return array<int, list<string>>
+     */
+    public static function valuesWith(array $own, array $stock): array
+    {
+        foreach ($stock as $field => $values) {
+            $own[$field] = [...array_map('strval', $own[$field] ?? []), ...$values];
+        }
+
+        return $own;
+    }
+
     /** @return list<int> the fields the filters read, so the caller reads the material's values once (CD-7) */
     public function fields(): array
     {
