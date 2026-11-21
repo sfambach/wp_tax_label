@@ -54,8 +54,8 @@ final class PrintRulesTest extends TestCase
     {
         $rules = new PrintRules([new PrintRule(1, 'Keller', 903, position: 5, forNode: self::PLACE, placeType: 40, workplace: 500), new PrintRule(2, 'leer', 0)]);
 
-        self::assertSame([['id' => 1, 'position' => 5, 'conditions' => [PrintRules::FOR => self::PLACE, PrintRules::FORM => 0, PrintRules::GROUP => 0, PrintRules::PLACE_TYPE => 40, PrintRules::WORKPLACE => 500]]], $rules->book(), 'a rule without a label is not handed in');
-        self::assertSame([PrintRules::FOR => [self::PLACE], PrintRules::FORM => [], PrintRules::GROUP => [], PrintRules::PLACE_TYPE => [40], PrintRules::WORKPLACE => []], PrintRules::context(new PrintContext([self::PLACE], placeType: 40)));
+        self::assertSame([['id' => 1, 'position' => 5, 'conditions' => [PrintRules::FOR => self::PLACE, PrintRules::FORM => 0, PrintRules::GROUP => 0, PrintRules::PLACE_TYPE => 40, PrintRules::WORKPLACE => 500, PrintRules::NODE => 0], 'filters' => []]], $rules->book(), 'a rule without a label is not handed in');
+        self::assertSame([PrintRules::FOR => [self::PLACE], PrintRules::FORM => [], PrintRules::GROUP => [], PrintRules::PLACE_TYPE => [40], PrintRules::WORKPLACE => [], PrintRules::NODE => []], PrintRules::context(new PrintContext([self::PLACE], placeType: 40)));
     }
 
     /** D-1541: the module translates, the rule book decides. */

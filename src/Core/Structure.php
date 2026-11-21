@@ -18,7 +18,9 @@ final class Structure
     public const NODES = ['label_template'];
 
     /** D-1190, D-1192: the printers and the rolls they hold; D-1502: the workplaces that name printers. */
-    private const OPTIONAL_NODES = ['label_printer', 'label_roll', 'label_workplace', 'label_rule'];
+    private const OPTIONAL_NODES = ['label_printer', 'label_roll', 'label_workplace', 'label_rule',
+        // D-1548: the shared «Regel-Filter» and the operator «gleich» of its constants.
+        'label_rule_filter', 'operator_equals'];
 
     /** `label` is the name of a record — read here, owned by the modeller's shipped name field. */
     public const FIELDS = ['label', 'template_key', 'template_width', 'template_height', 'template_layout'];
@@ -39,6 +41,8 @@ final class Structure
         'workplace_printers', 'workplace_default_printer', 'workplace_location',
         // D-1519: a print rule — what it is for, when it holds, what it prints on which printer how often; `position` is its order.
         'position', 'rule_for', 'rule_form', 'rule_group', 'rule_place_type', 'rule_workplace', 'rule_label', 'rule_printer', 'rule_copies',
+        // D-1548: the rule's node and its filters, the same fields as the test rules'.
+        'rule_node', 'rule_filters', 'filter_field', 'filter_value', 'filter_operator',
     ];
 
     /**

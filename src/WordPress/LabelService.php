@@ -184,7 +184,13 @@ final class LabelService
     public function dialogCatalog(): LabelCatalog
     {
         // D-1541: which rule holds is the modeller's one rule book, never this module's.
-        return $this->catalog()->at($this->workplace())->withRules($this->rules(), fn (array $book, array $context, \Closure $usable): ?int => $this->door->firstRule($book, $context, usable: $usable));
+        return $this->catalog()->at($this->workplace())->withRules($this->rules(), fn (array $book, array $context, \Closure $usable, int $record = 0, array $fields = []): ?int => $this->door->firstRule(
+            $book,
+            $context,
+            // D-1548: only the fields a filter reads, of the one material.
+            $record > 0 ? array_intersect_key($this->door->valuesOf([$record])[$record] ?? [], array_flip($fields)) : [],
+            $usable
+        ));
     }
 
     /** D-1519: the print rules, read once; none where the model has no «Druckregeln» or the role points at a node it lacks. */
@@ -197,7 +203,7 @@ final class LabelService
             return $this->rules = new PrintRules([]);
         }
         try {
-            return $this->rules = PrintRules::fromTable($this->structure(), $this->table('label_rule'));
+            return $this->rules = PrintRules::fromTable($this->structure(), $this->table('label_rule'), $this->structure()->hasNode('label_rule_filter') ? $this->table('label_rule_filter') : null);
         } catch (DomainError) {
             return $this->rules = new PrintRules([]);
         }
