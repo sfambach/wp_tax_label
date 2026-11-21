@@ -8,6 +8,7 @@ use TaxmodLabel\Tests\Support\RuleBookStandIn;
 use TaxmodLabel\Core\LabelCatalog;
 use TaxmodLabel\Core\LabelContents;
 use TaxmodLabel\Core\PrintRule;
+use TaxmodLabel\Core\PrintContext;
 use TaxmodLabel\Core\PrintRules;
 use TaxmodLabel\Core\Structure;
 use TaxmodLabel\Core\Table;
@@ -187,6 +188,24 @@ final class CatalogTest extends TestCase
         self::assertSame([601, 600], array_map(static fn (PrintRule $r): int => $r->id, $rules->all()), 'in order of position');
         self::assertSame([10, 21, 2, 2, 0], [$rules->all()[1]->forNode, $rules->all()[1]->form, $rules->all()[1]->label, $rules->all()[1]->copies, $rules->all()[1]->printer]);
         self::assertNull($rules->all()[0]->copies, 'no number: the label\'s own');
+    }
+
+    #[Test]
+    public function a_print_rule_holds_its_node_and_its_filters_from_the_shared_rule_filter(): void
+    {
+        // D-1548: the same form as the test rules — a node, plus filters «Feld · Operator · Wert» of the shared «Regel-Filter».
+        $s       = Structure::fromArray(['nodes' => ['label_template' => 23, 'label_rule' => 27, 'label_rule_filter' => 28, 'operator_equals' => 90], 'fields' => ['label' => 1, 'rule_label' => 465, 'rule_node' => 470, 'rule_filters' => 471, 'filter_field' => 472, 'filter_value' => 473, 'filter_operator' => 474]]);
+        $rules   = PrintRules::fromTable($s, new Table([600 => [1 => ['SMD-Widerstände'], 465 => ['2'], 470 => ['30'], 471 => ['80', '81']]]), new Table([
+            80 => [472 => ['555'], 473 => [' SMD '], 474 => ['90']],
+            81 => [472 => ['556'], 473 => ['5'], 474 => ['91']],
+        ]));
+        $book    = $rules->book();
+
+        self::assertSame(30, $book[0]['conditions'][PrintRules::NODE]);
+        self::assertSame([['field' => 555, 'value' => 'SMD', 'operator' => PrintRules::EQUALS], ['field' => 556, 'value' => '5', 'operator' => '91']], $book[0]['filters'], 'an operator not built is passed on and never holds');
+        self::assertSame([555, 556], $rules->fields());
+        self::assertSame([30, 31], PrintRules::context(PrintContext::fromArray(['groups' => [30, 31], 'record' => 4711], 0))[PrintRules::NODE], 'the node holds along the material\'s group path');
+        self::assertSame(4711, PrintContext::fromArray(['record' => 4711], 0)->record);
     }
 
     #[Test]

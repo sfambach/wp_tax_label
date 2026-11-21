@@ -22,6 +22,12 @@ final class PrintRules
     /** The condition keys of the rule book — one per fixed condition (R1); place type and workplace hold by equality. */
     public const FOR = 1, FORM = 2, GROUP = 3, PLACE_TYPE = 4, WORKPLACE = 5;
 
+    /** D-1548: the rule's node, held against the material's group path like «Materialgruppe». */
+    public const NODE = 6;
+
+    /** The rule book's word for the one operator built (D-1541); any other never holds. */
+    public const EQUALS = 'equals';
+
     /** @var list<PrintRule> */
     private readonly array $rules;
 
@@ -32,12 +38,26 @@ final class PrintRules
         $this->rules = $rules;
     }
 
-    /** The rules as the model holds them: one record of «Druckregeln» each; a record without a label is no rule. */
-    public static function fromTable(Structure $s, Table $rules): self
+    /**
+     * The rules as the model holds them: one record of «Druckregeln» each; a record without a label is no rule. Its filters are
+     * records of the shared «Regel-Filter» (D-1548), held by the rule (composition).
+     */
+    public static function fromTable(Structure $s, Table $rules, ?Table $filters = null): self
     {
-        $int = static fn (int $id, string $field): int => $s->hasField($field) ? (int) $rules->first($id, $s->field($field)) : 0;
-        $out = [];
+        $int    = static fn (int $id, string $field): int => $s->hasField($field) ? (int) $rules->first($id, $s->field($field)) : 0;
+        $equals = $s->hasNode('operator_equals') ? (string) $s->node('operator_equals') : '';
+        $out    = [];
         foreach ($rules->ids() as $id) {
+            $own = [];
+            foreach ($filters !== null && $s->hasField('rule_filters') ? $rules->all($id, $s->field('rule_filters')) : [] as $filter) {
+                $filter   = (int) $filter;
+                $field    = $s->hasField('filter_field') ? (int) $filters->first($filter, $s->field('filter_field')) : 0;
+                $operator = $s->hasField('filter_operator') ? trim((string) $filters->first($filter, $s->field('filter_operator'))) : '';
+                if ($field > 0) {
+                    // An empty operator is «gleich»; one not built yet is passed on as it is and never holds (D-1541).
+                    $own[] = ['field' => $field, 'value' => $s->hasField('filter_value') ? trim((string) $filters->first($filter, $s->field('filter_value'))) : '', 'operator' => $operator === '' || $operator === $equals ? self::EQUALS : $operator];
+                }
+            }
             $copies = $s->hasField('rule_copies') ? trim((string) $rules->first($id, $s->field('rule_copies'))) : '';
             $out[]  = new PrintRule(
                 $id,
@@ -51,6 +71,8 @@ final class PrintRules
                 $int($id, 'rule_workplace'),
                 $copies === '' ? null : max(1, (int) $copies),
                 $int($id, 'rule_printer'),
+                $int($id, 'rule_node'),
+                $own,
             );
         }
 
@@ -82,7 +104,7 @@ final class PrintRules
     /**
      * The rules as the rule book takes them. A rule without a label never holds, so it is not handed in.
      *
-     * @return list<array{id: int, position: int, conditions: array<int, int>}>
+     * @return list<array{id: int, position: int, conditions: array<int, int>, filters: list<array{field: int, value: string, operator: string}>}>
      */
     public function book(): array
     {
@@ -91,8 +113,8 @@ final class PrintRules
             if ($rule->label > 0) {
                 $out[] = ['id' => $rule->id, 'position' => $rule->position, 'conditions' => [
                     self::FOR => $rule->forNode, self::FORM => $rule->form, self::GROUP => $rule->group,
-                    self::PLACE_TYPE => $rule->placeType, self::WORKPLACE => $rule->workplace,
-                ]];
+                    self::PLACE_TYPE => $rule->placeType, self::WORKPLACE => $rule->workplace, self::NODE => $rule->node,
+                ], 'filters' => $rule->filters];
             }
         }
 
@@ -111,7 +133,20 @@ final class PrintRules
 
         return [
             self::FOR => $context->nodePath, self::FORM => $context->formPath, self::GROUP => $context->groupPath,
-            self::PLACE_TYPE => $one($context->placeType), self::WORKPLACE => $one($context->workplace),
+            self::PLACE_TYPE => $one($context->placeType), self::WORKPLACE => $one($context->workplace), self::NODE => $context->groupPath,
         ];
+    }
+
+    /** @return list<int> the fields the filters read, so the caller reads the material's values once (CD-7) */
+    public function fields(): array
+    {
+        $out = [];
+        foreach ($this->rules as $rule) {
+            foreach ($rule->filters as $filter) {
+                $out[$filter['field']] = true;
+            }
+        }
+
+        return array_keys($out);
     }
 }

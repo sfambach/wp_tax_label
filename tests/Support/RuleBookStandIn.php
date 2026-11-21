@@ -29,6 +29,6 @@ final class RuleBookStandIn
     /** As the catalog takes it. */
     public static function closure(): \Closure
     {
-        return static fn (array $book, array $context, \Closure $usable): ?int => self::first($book, $context, $usable);
+        return static fn (array $book, array $context, \Closure $usable, int $record = 0, array $fields = []): ?int => self::first($book, $context, $usable);
     }
 }

@@ -71,7 +71,7 @@ final class RulesPage
         foreach ($rules as $rule) {
             if ($rule->id === $chosen) {
                 return ListPage::recordHead(__('Druckregel', 'taxmod-label'), $rule->name === '' ? '#' . $rule->id : $rule->name, self::url(), __('Druckregeln', 'taxmod-label'), $explain)
-                    . (string) apply_filters('taxmod_record_editor', '', $chosen, self::url(['satz' => $chosen]));
+                    . (string) apply_filters('taxmod_record_editor', '', $chosen, self::url(['satz' => $chosen]), [], self::roots($s));
             }
         }
 
@@ -81,6 +81,25 @@ final class RulesPage
             . ListPage::table([[__('Nr.', 'taxmod-label'), '4em'], [__('Regel', 'taxmod-label'), '14em'], [__('Wenn', 'taxmod-label'), ''], [__('Etikett', 'taxmod-label'), '12em'], [__('Drucker', 'taxmod-label'), '10em'], [__('Anzahl', 'taxmod-label'), '5em'], ['', '4em']], $this->rows($service));
     }
 
+    /**
+     * D-1546, D-1548: the rule's node and its material group are chosen under the branches «Material steht in» names — asked of the
+     * stock (`taxmod_material_roots`), never a wired branch.
+     *
+     * @return array<int, list<int>> relation id → roots
+     */
+    private static function roots(\TaxmodLabel\Core\Structure $s): array
+    {
+        $roots = array_values(array_filter(array_map('absint', (array) apply_filters('taxmod_material_roots', []))));
+        $out   = [];
+        foreach ($roots === [] ? [] : ['rule_node', 'rule_group'] as $key) {
+            if ($s->hasField($key)) {
+                $out[$s->field($key)] = $roots;
+            }
+        }
+
+        return $out;
+    }
+
     private function rows(LabelService $service): string
     {
         $rules = $service->rules()->all();
@@ -88,18 +107,27 @@ final class RulesPage
             return '<tr class="no-items"><td class="colspanchange" colspan="8">' . esc_html__('Noch keine Regel: der Druckdialog wählt wie bisher.', 'taxmod-label') . '</td></tr>';
         }
         $s      = $service->structure();
-        $fields = array_values(array_filter(array_map(static fn (string $key): int => $s->hasField($key) ? $s->field($key) : 0, ['rule_for', 'rule_form', 'rule_group', 'rule_place_type', 'rule_workplace', 'rule_label', 'rule_printer'])));
+        $fields = array_values(array_filter(array_map(static fn (string $key): int => $s->hasField($key) ? $s->field($key) : 0, ['rule_for', 'rule_node', 'rule_form', 'rule_group', 'rule_place_type', 'rule_workplace', 'rule_label', 'rule_printer'])));
         // D-1291: the words as the modeller shows them, one run for every rule (CD-7).
         $words  = (new ModelDoor())->fieldWords(array_map(static fn (PrintRule $rule): int => $rule->id, $rules), $fields);
+        $door   = new ModelDoor();
+        $named  = [];
+        // The field names at the rule's node, read once per node (CD-7).
+        $names  = static function (int $node) use ($door, &$named): array {
+            return $node <= 0 ? [] : $named[$node] ??= array_map(static fn (array $field): string => $field['name'], $door->fields($node));
+        };
         $word   = static fn (string $key, int $id): string => $s->hasField($key) ? trim((string) ($words[$s->field($key)][$id] ?? '')) : '';
         $body   = '';
         foreach ($rules as $rule) {
             $when = array_filter([
                 $word('rule_for', $rule->id),
+                ($w = $word('rule_node', $rule->id)) === '' ? '' : __('Knoten', 'taxmod-label') . ' ' . $w,
                 ($w = $word('rule_form', $rule->id)) === '' ? '' : __('Bauform', 'taxmod-label') . ' ' . $w,
                 ($w = $word('rule_group', $rule->id)) === '' ? '' : __('Gruppe', 'taxmod-label') . ' ' . $w,
                 ($w = $word('rule_place_type', $rule->id)) === '' ? '' : __('Platzart', 'taxmod-label') . ' ' . $w,
                 ($w = $word('rule_workplace', $rule->id)) === '' ? '' : __('Arbeitsplatz', 'taxmod-label') . ' ' . $w,
+                // D-1548: the filters, as the test rules show them.
+                ...array_map(static fn (array $f): string => sprintf('%s %s %s', $names($rule->node)[$f['field']] ?? '#' . $f['field'], $f['operator'] === \TaxmodLabel\Core\PrintRules::EQUALS ? '=' : '?', $f['value']), $rule->filters),
             ]);
             $body .= '<tr><th scope="row" class="check-column"></th><td>' . esc_html((string) $rule->position) . '</td>'
                 . '<td><a href="' . esc_url(self::url(['satz' => $rule->id])) . '"><strong>' . esc_html($rule->name === '' ? '#' . $rule->id : $rule->name) . '</strong></a></td>'
