@@ -39,6 +39,32 @@ final class LabelService
      */
     public const CATALOG_FILTER = 'taxmod_label_catalog';
 
+    /**
+     * `apply_filters(TAKEOVER_FILTER, null, $proposals)`: today's label preselections as print rules of the one rule book (D-1552,
+     * Prüftor 21.11.) — the operations for `taxmod/apply` and the proposals left open; asked by the stock's read-only ability.
+     */
+    public const TAKEOVER_FILTER = 'taxmod_print_rule_takeover';
+
+    /**
+     * The answer to {@see TAKEOVER_FILTER}: an earlier answer stands; without print rules in the structure it stays as it was.
+     *
+     * @param mixed $answer `mixed`: whatever an earlier listener gave
+     * @param mixed $proposals `mixed`: as the stock hands them
+     */
+    public static function answerTakeover(mixed $answer, mixed $proposals = []): mixed
+    {
+        if (is_array($answer) || ! is_array($proposals)) {
+            return $answer;
+        }
+        try {
+            $service = new self();
+
+            return (new \TaxmodLabel\Core\PrintRuleTakeover($service->structure()))->of(array_values($proposals), $service->rules());
+        } catch (LabelError | DomainError) {
+            return $answer;
+        }
+    }
+
     /** The answer to {@see CATALOG_FILTER}: an earlier answer stands; a model without labels leaves it as it was. */
     public static function answerCatalog(mixed $catalog): mixed
     {
