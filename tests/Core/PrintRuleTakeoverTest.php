@@ -9,16 +9,17 @@ use TaxmodLabel\Core\PrintRules;
 use TaxmodLabel\Core\PrintRuleTakeover;
 use TaxmodLabel\Core\Structure;
 
-/** Prüftor 21.11., D-1552: a preselection becomes node + filters; one naming «für» stays open (INF-142). */
+/** Prüftor 21.11., D-1552: a preselection becomes «Wofür» + node + filters; without the field «Wofür» one naming «für» stays open. */
 final class PrintRuleTakeoverTest extends TestCase
 {
-    private static function structure(): Structure
+    private static function structure(bool $for = true): Structure
     {
         return Structure::fromArray([
             'nodes'  => ['label_template' => 1, 'label_rule' => 2, 'filter_kind_field' => 3, 'filter_kind_stock' => 4],
             'fields' => ['label' => 10, 'template_key' => 11, 'template_width' => 12, 'template_height' => 13, 'template_layout' => 14,
                 'position' => 15, 'rule_node' => 16, 'rule_label' => 17, 'rule_copies' => 18, 'rule_filters' => 19,
-                'filter_field' => 20, 'filter_value' => 21, 'filter_kind' => 22, 'material_form' => 23, 'location_place_type' => 24],
+                'filter_field' => 20, 'filter_value' => 21, 'filter_kind' => 22, 'material_form' => 23, 'location_place_type' => 24]
+                + ($for ? ['rule_for' => 25] : []),
         ]);
     }
 
@@ -38,13 +39,24 @@ final class PrintRuleTakeoverTest extends TestCase
     }
 
     #[Test]
-    public function a_proposal_naming_for_is_only_listed_and_a_standing_rule_is_not_repeated(): void
+    public function for_becomes_wofuer_and_a_standing_rule_is_not_repeated(): void
     {
-        $standing = new PrintRule(1, 'steht', 900, position: 10, node: 300, filters: [['field' => 23, 'value' => '400', 'operator' => PrintRules::EQUALS]]);
+        $standing = new PrintRule(1, 'steht', 900, position: 10, forNode: 77, node: 300, filters: [['field' => 23, 'value' => '400', 'operator' => PrintRules::EQUALS]]);
         $answer   = (new PrintRuleTakeover(self::structure()))->of([
             ['name' => 'Material · Gruppe X', 'for' => 77, 'group' => 300, 'label' => 900],
-            ['name' => 'schon Regel', 'group' => 300, 'form' => 400, 'label' => 900],
+            ['name' => 'schon Regel', 'for' => 77, 'group' => 300, 'form' => 400, 'label' => 900],
         ], new PrintRules([$standing]));
+
+        self::assertSame([], $answer['open']);
+        self::assertCount(1, $answer['changes']);
+        self::assertSame('77', $answer['changes'][0]['values']['25']);
+        self::assertSame('300', $answer['changes'][0]['values']['16']);
+    }
+
+    #[Test]
+    public function without_the_field_wofuer_a_proposal_naming_for_is_only_listed(): void
+    {
+        $answer = (new PrintRuleTakeover(self::structure(false)))->of([['name' => 'X', 'for' => 77, 'group' => 300, 'label' => 900]], new PrintRules([]));
 
         self::assertSame([['proposal' => 0, 'reason' => 'for']], $answer['open']);
         self::assertSame([], $answer['changes']);

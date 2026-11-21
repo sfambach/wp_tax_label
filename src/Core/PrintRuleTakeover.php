@@ -4,8 +4,8 @@ namespace TaxmodLabel\Core;
 
 /**
  * Today's label preselections as print rules of the one rule book (D-1552): the group becomes the rule's node, a Bauform a filter
- * of kind «Feld», a Platzart a filter of kind «Bestand»; label and copies stay the rule's own fields. A preselection that names what
- * it is for («für») is only listed — that mapping is open (INF-142) — and one whose rule already stands is left out.
+ * of kind «Feld», a Platzart a filter of kind «Bestand»; what it is for, label and copies stay the rule's own fields («Wofür» is the
+ * rule's own field, Prüftor 21.11.). A preselection naming «für» without that field is only listed; one whose rule stands is left out.
  *
  * ```mermaid
  * flowchart LR
@@ -16,7 +16,7 @@ namespace TaxmodLabel\Core;
  *   D -->|no| W["create_record with node, filters, label, copies"]
  * ```
  *
- * @see https://github.com/sfambach/wp-taxonomy-modeler/blob/main/docs/neues-konzept-eingang.md INF-142
+ * @see https://github.com/sfambach/wp-taxonomy-modeler/blob/main/docs/NewConcept/90-decision-log.md D-1552
  */
 final class PrintRuleTakeover
 {
@@ -40,7 +40,7 @@ final class PrintRuleTakeover
 
         $taken = [];
         foreach ($rules->all() as $rule) {
-            $taken[self::key($rule->node, $rule->filters)] = true;
+            $taken[self::key($rule->forNode, $rule->node, $rule->filters)] = true;
         }
 
         $position = array_reduce($rules->all(), static fn (int $max, PrintRule $rule): int => max($max, $rule->position), 0);
@@ -48,7 +48,7 @@ final class PrintRuleTakeover
         $open     = [];
 
         foreach ($proposals as $i => $proposal) {
-            if ((int) ($proposal['for'] ?? 0) > 0) {
+            if ((int) ($proposal['for'] ?? 0) > 0 && ! $s->hasField('rule_for')) {
                 $open[] = ['proposal' => $i, 'reason' => 'for'];
                 continue;
             }
@@ -64,7 +64,7 @@ final class PrintRuleTakeover
                 continue;
             }
 
-            $key = self::key((int) ($proposal['group'] ?? 0), array_map(static fn (array $f): array => ['field' => $f['field'], 'value' => $f['value'], 'operator' => PrintRules::EQUALS], $filters));
+            $key = self::key((int) ($proposal['for'] ?? 0), (int) ($proposal['group'] ?? 0), array_map(static fn (array $f): array => ['field' => $f['field'], 'value' => $f['value'], 'operator' => PrintRules::EQUALS], $filters));
 
             if (isset($taken[$key])) {
                 continue;
@@ -120,6 +120,10 @@ final class PrintRuleTakeover
         $s      = $this->structure;
         $values = [(string) $s->field('label') => (string) $proposal['name'], (string) $s->field('rule_label') => (string) (int) $proposal['label']];
 
+        if ((int) ($proposal['for'] ?? 0) > 0) {
+            $values[(string) $s->field('rule_for')] = (string) (int) $proposal['for'];
+        }
+
         if ((int) ($proposal['group'] ?? 0) > 0) {
             $values[(string) $s->field('rule_node')] = (string) (int) $proposal['group'];
         }
@@ -150,11 +154,11 @@ final class PrintRuleTakeover
     }
 
     /** @param list<array{field: int, value: string, operator: string}> $filters */
-    private static function key(int $node, array $filters): string
+    private static function key(int $for, int $node, array $filters): string
     {
         $words = array_map(static fn (array $f): string => $f['field'] . '=' . $f['value'] . ':' . $f['operator'], $filters);
         sort($words);
 
-        return $node . '|' . implode(',', $words);
+        return $for . '|' . $node . '|' . implode(',', $words);
     }
 }
