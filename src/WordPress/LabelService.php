@@ -12,6 +12,7 @@ use TaxmodLabel\Core\PrinterMedia;
 use TaxmodLabel\Core\PrintRules;
 use TaxmodLabel\Core\Structure;
 use TaxmodLabel\Core\Table;
+use TaxmodLabel\Core\UnitAmounts;
 use TaxmodLabel\Core\Workplace;
 
 /**
@@ -121,7 +122,7 @@ final class LabelService
         $nodeOf     = $this->door->recordsOf(array_merge([$root], array_keys($categories)), 500);
 
         return $this->records = [
-            'table'      => new Table($nodeOf === [] ? [] : $this->door->valuesOf(array_keys($nodeOf))),
+            'table'      => $this->measured(new Table($nodeOf === [] ? [] : $this->door->valuesOf(array_keys($nodeOf)))),
             'categories' => $categories,
             'node_of'    => $nodeOf,
             'root'       => $root,
@@ -238,7 +239,21 @@ final class LabelService
     {
         $id = $this->structure()->node($node);
 
-        return $this->tables[$id] ??= new Table($this->door->records($id));
+        return $this->tables[$id] ??= $this->measured(new Table($this->door->records($id)));
+    }
+
+    /**
+     * Feldkatalog 9/10/12: sizes stored as unit values read in the module's unit, all of a table in one read (CD-7); a modeller
+     * that does not convert yet leaves the plain numbers as they are.
+     */
+    private function measured(Table $table): Table
+    {
+        $fields = UnitAmounts::fields($this->structure());
+        if ($table->ids() === [] || $fields === [] || ! method_exists($this->door, 'amountsOf')) {
+            return $table;
+        }
+
+        return UnitAmounts::into($this->structure(), $table, $this->door->amountsOf($table->ids(), $fields));
     }
 
     public function rollTable(): ?Table
