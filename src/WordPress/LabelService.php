@@ -9,7 +9,6 @@ use TaxmodLabel\Core\LabelCatalog;
 use TaxmodLabel\Core\LabelChanges;
 use TaxmodLabel\Core\LabelError;
 use TaxmodLabel\Core\PrinterMedia;
-use TaxmodLabel\Core\PrintRuleChanges;
 use TaxmodLabel\Core\PrintRules;
 use TaxmodLabel\Core\Structure;
 use TaxmodLabel\Core\Table;
@@ -207,50 +206,6 @@ final class LabelService
         } catch (DomainError) {
             return $this->rules = new PrintRules([]);
         }
-    }
-
-    /**
-     * D-1519 R2: today's preselections as proposed rules — the stock answers them (filter `taxmod_label_rule_proposals`), the
-     * label module keeps no copy of where they came from. Only well-formed proposals pass.
-     *
-     * @return list<array{name: string, for?: int, form?: int, group?: int, place_type?: int, label: int, copies?: int|null}>
-     */
-    public function ruleProposals(): array
-    {
-        $answer = apply_filters('taxmod_label_rule_proposals', []);
-        $out    = [];
-        foreach (is_array($answer) ? $answer : [] as $one) {
-            if (! is_array($one) || trim((string) ($one['name'] ?? '')) === '' || (int) ($one['label'] ?? 0) <= 0) {
-                continue;
-            }
-            $proposal = ['name' => trim((string) $one['name']), 'label' => (int) $one['label']];
-            foreach (['for', 'form', 'group', 'place_type'] as $key) {
-                (int) ($one[$key] ?? 0) > 0 && $proposal[$key] = (int) $one[$key];
-            }
-            $proposal['copies'] = (int) ($one['copies'] ?? 0) > 0 ? (int) $one['copies'] : null;
-            $out[]              = $proposal;
-        }
-
-        return $out;
-    }
-
-    /** D-1519: a new rule with its name, last in the order, one act. */
-    public function createRule(string $name): int
-    {
-        $answer = $this->door->write((new PrintRuleChanges($this->structure()))->create($name, $this->rules()));
-
-        return (int) ($answer['refs']['regel'] ?? 0);
-    }
-
-    /** D-1519 R2: every proposal not yet a rule becomes one, in one act (undo per act, D-1410); the number taken. */
-    public function takeOverRules(): int
-    {
-        $open = PrintRuleChanges::open($this->ruleProposals(), $this->rules());
-        if ($open !== []) {
-            $this->door->write((new PrintRuleChanges($this->structure()))->takeOver($open, $this->rules()));
-        }
-
-        return count($open);
     }
 
     public function table(string $node): Table
