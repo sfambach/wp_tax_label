@@ -29,8 +29,8 @@ final class Plugin
 {
     public const VERSION = '0.0.37';
 
-    /** D-1295: labelValues and queuePrint came with 0.2.61; DialogNumber since 0.2.133 (D-1431); button/iconButton/listBar since 0.2.172 (D-1500). */
-    public const MIN_MODELLER = '0.2.194';
+    /** D-1295: labelValues and queuePrint came with 0.2.61; DialogNumber since 0.2.133 (D-1431); button/iconButton/listBar since 0.2.172 (D-1500); several roots of a choice since 0.2.200 (D-1546). */
+    public const MIN_MODELLER = '0.2.200';
 
     private static string $file = '';
 
