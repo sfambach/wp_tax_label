@@ -80,7 +80,7 @@ final class LabelButton
     public static function render(string $prefix, int $id, string $title, string $subtitle = '', int $copies = 1, array $template = []): string
     {
         $kind = LabelPrefix::tryFrom($prefix);
-        if ($kind === null || $id <= 0 || trim($title) === '' || ! current_user_can(Modeller::CAPABILITY)) {
+        if ($kind === null || $id <= 0 || trim($title) === '' || ! current_user_can(\Taxmod\WordPress\Rights::VIEW)) {
             return '';
         }
         do_action(Modeller::STYLE_ACTION);
@@ -143,7 +143,7 @@ final class LabelButton
     /** admin-post: capability, nonce, validate, then queue for the service or hand out the PDF. */
     public static function handle(): void
     {
-        if (! current_user_can(Modeller::CAPABILITY)) {
+        if (! current_user_can(\Taxmod\WordPress\Rights::VIEW)) {
             self::fail(esc_html__('You cannot print labels.', 'taxmod-label'), 403, ['taxmod_ajax' => $_POST['taxmod_ajax'] ?? '']);
         }
         check_admin_referer(self::ACTION, self::NONCE);
@@ -311,7 +311,7 @@ final class LabelButton
      */
     public static function status(): void
     {
-        if (! current_user_can(Modeller::CAPABILITY)) {
+        if (! current_user_can(\Taxmod\WordPress\Rights::VIEW)) {
             wp_send_json_error(['message' => __('You cannot print labels.', 'taxmod-label')], 403);
         }
         check_ajax_referer(self::ACTION, self::NONCE);

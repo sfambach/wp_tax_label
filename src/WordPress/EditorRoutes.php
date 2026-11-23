@@ -2,7 +2,6 @@
 
 namespace TaxmodLabel\WordPress;
 
-use Taxmod\WordPress\Plugin as Modeller;
 
 /**
  * The editor's two doors to the server — draw and save — the same work the abilities do, behind the REST nonce of the admin screen.
@@ -21,7 +20,7 @@ final class EditorRoutes
 
     public function register(): void
     {
-        $allowed = static fn (): bool => current_user_can(Modeller::CAPABILITY);
+        $allowed = static fn (): bool => current_user_can(\Taxmod\WordPress\Rights::CONFIGURE);
         register_rest_route(self::NAMESPACE, '/preview', [
             'methods'             => 'POST',
             'permission_callback' => $allowed,

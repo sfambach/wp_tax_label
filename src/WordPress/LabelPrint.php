@@ -3,7 +3,6 @@
 namespace TaxmodLabel\WordPress;
 
 use Taxmod\Core\Printing\LabelPrefix;
-use Taxmod\WordPress\Plugin as Modeller;
 use TaxmodLabel\Core\LabelContent;
 use TaxmodLabel\Core\LabelFormat;
 
@@ -41,7 +40,7 @@ final class LabelPrint
 
     public function handle(): void
     {
-        if (! current_user_can(Modeller::CAPABILITY)) {
+        if (! current_user_can(\Taxmod\WordPress\Rights::VIEW)) {
             wp_die(esc_html__('You cannot print labels.', 'taxmod-label'), '', ['response' => 403]);
         }
 

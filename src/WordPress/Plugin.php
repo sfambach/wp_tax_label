@@ -29,8 +29,8 @@ final class Plugin
 {
     public const VERSION = '0.0.48';
 
-    /** D-1295: labelValues and queuePrint came with 0.2.61; DialogNumber since 0.2.133 (D-1431); button/iconButton/listBar since 0.2.172 (D-1500); several roots of a choice since 0.2.200 (D-1546); the one rules page since 0.2.206 (D-1558). */
-    public const MIN_MODELLER = '0.2.206';
+    /** D-1295: labelValues and queuePrint came with 0.2.61; DialogNumber since 0.2.133 (D-1431); button/iconButton/listBar since 0.2.172 (D-1500); several roots of a choice since 0.2.200 (D-1546); the one rules page since 0.2.206 (D-1558); the rights table since 0.2.237 (D-1585). */
+    public const MIN_MODELLER = '0.2.237';
 
     private static string $file = '';
 
@@ -97,13 +97,13 @@ final class Plugin
      */
     public static function pages(array $pages): array
     {
-        $pages[] = ['slug' => LabelsPage::SLUG, 'label' => __('Etiketten', 'taxmod-label'), 'area' => 'print', 'position' => 20, 'capability' => \Taxmod\WordPress\Plugin::CAPABILITY, 'render' => static fn (): string => (new LabelsPage())->render()];
+        $pages[] = ['slug' => LabelsPage::SLUG, 'label' => __('Etiketten', 'taxmod-label'), 'area' => 'print', 'position' => 20, 'capability' => \Taxmod\WordPress\Rights::CONFIGURE, 'render' => static fn (): string => (new LabelsPage())->render()];
         // D-1519 R4, D-1558: Einstellungen › Druck › Druckregeln, after the labels they choose from — a jump to the one rules page.
-        $pages[] = ['slug' => PrintRulesSetup::SLUG, 'label' => __('Druckregeln', 'taxmod-label'), 'area' => 'print', 'position' => 30, 'capability' => \Taxmod\WordPress\Plugin::CAPABILITY, 'render' => null];
-        $pages[] = ['slug' => PrintersPage::SLUG, 'label' => __('Drucker', 'taxmod-label'), 'area' => 'print', 'position' => 40, 'capability' => \Taxmod\WordPress\Plugin::CAPABILITY, 'render' => static fn (): string => (new PrintersPage())->render()];
-        $pages[] = ['slug' => WorkplacesPage::SLUG, 'label' => __('Arbeitsplätze', 'taxmod-label'), 'area' => 'masterdata', 'capability' => \Taxmod\WordPress\Plugin::CAPABILITY, 'render' => static fn (): string => (new WorkplacesPage())->render()];
-        $pages[] = ['slug' => PrintersPage::MEDIA_SLUG, 'label' => __('Druckmedium', 'taxmod-label'), 'area' => 'print', 'position' => 50, 'capability' => \Taxmod\WordPress\Plugin::CAPABILITY, 'render' => static fn (): string => (new PrintersPage())->media()];
-        $pages[] = ['slug' => PrintersPage::GENERAL_SLUG, 'label' => __('Allgemein', 'taxmod-label'), 'area' => 'print', 'position' => 10, 'capability' => \Taxmod\WordPress\Plugin::CAPABILITY, 'render' => static fn (): string => (new PrintersPage())->general()];
+        $pages[] = ['slug' => PrintRulesSetup::SLUG, 'label' => __('Druckregeln', 'taxmod-label'), 'area' => 'print', 'position' => 30, 'capability' => \Taxmod\WordPress\Rights::CONFIGURE, 'render' => null];
+        $pages[] = ['slug' => PrintersPage::SLUG, 'label' => __('Drucker', 'taxmod-label'), 'area' => 'print', 'position' => 40, 'capability' => \Taxmod\WordPress\Rights::CONFIGURE, 'render' => static fn (): string => (new PrintersPage())->render()];
+        $pages[] = ['slug' => WorkplacesPage::SLUG, 'label' => __('Arbeitsplätze', 'taxmod-label'), 'area' => 'masterdata', 'capability' => \Taxmod\WordPress\Rights::CONFIGURE, 'render' => static fn (): string => (new WorkplacesPage())->render()];
+        $pages[] = ['slug' => PrintersPage::MEDIA_SLUG, 'label' => __('Druckmedium', 'taxmod-label'), 'area' => 'print', 'position' => 50, 'capability' => \Taxmod\WordPress\Rights::CONFIGURE, 'render' => static fn (): string => (new PrintersPage())->media()];
+        $pages[] = ['slug' => PrintersPage::GENERAL_SLUG, 'label' => __('Allgemein', 'taxmod-label'), 'area' => 'print', 'position' => 10, 'capability' => \Taxmod\WordPress\Rights::CONFIGURE, 'render' => static fn (): string => (new PrintersPage())->general()];
 
         return $pages;
     }
