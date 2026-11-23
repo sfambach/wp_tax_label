@@ -2,7 +2,6 @@
 
 namespace TaxmodLabel\WordPress;
 
-use Taxmod\WordPress\Plugin as Modeller;
 use TaxmodLabel\Core\Pdf\PostageText;
 
 /**
@@ -51,7 +50,7 @@ final class Label62Script
             'empty'  => __('The PDF has no printed content.', 'taxmod-label'),
             'failed' => __('The PDF could not be read:', 'taxmod-label'),
             // D-1517: the print service on the workplace's default printer; the browser's dialog only where that is missing.
-            'service' => current_user_can(Modeller::CAPABILITY) ? [
+            'service' => current_user_can(\Taxmod\WordPress\Rights::VIEW) ? [
                 'url'         => admin_url('admin-ajax.php'),
                 'action'      => PostagePrint::ACTION,
                 'dialog'      => PostagePrint::DIALOG_ACTION,

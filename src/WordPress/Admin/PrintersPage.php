@@ -6,7 +6,6 @@ use Taxmod\Core\Description\InputKind;
 use Taxmod\WordPress\Draw\SelectMarkup;
 use Taxmod\WordPress\Admin\ListPage;
 use Taxmod\WordPress\Draw\ToggleMarkup;
-use Taxmod\WordPress\Plugin as Modeller;
 use TaxmodLabel\Core\LabelContent;
 use TaxmodLabel\Core\LabelFormat;
 use TaxmodLabel\Core\LabelPrinter;
@@ -56,7 +55,7 @@ final class PrintersPage
     /** admin-post «Rolle wechseln»: capability → nonce → validate → act (D-1254). */
     public static function handle(): void
     {
-        if (! current_user_can(Modeller::CAPABILITY)) {
+        if (! current_user_can(\Taxmod\WordPress\Rights::CONFIGURE)) {
             ListPage::fail(__('Keine Berechtigung.', 'taxmod-label'), self::url());
         }
         ListPage::nonce(self::ACTION);

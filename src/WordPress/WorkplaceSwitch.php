@@ -2,7 +2,6 @@
 
 namespace TaxmodLabel\WordPress;
 
-use Taxmod\WordPress\Plugin as Modeller;
 use TaxmodLabel\Core\WorkplaceMenu;
 use TaxmodLabel\WordPress\Admin\WorkplacesPage;
 
@@ -41,7 +40,7 @@ final class WorkplaceSwitch
             return self::$menu;
         }
         self::$read = true;
-        if (! is_user_logged_in() || ! current_user_can(Modeller::CAPABILITY)) {
+        if (! is_user_logged_in() || ! current_user_can(\Taxmod\WordPress\Rights::VIEW)) {
             return null;
         }
         $service = new LabelService();
@@ -76,7 +75,7 @@ final class WorkplaceSwitch
         $bar->add_node([
             'id'    => 'taxmod-workplace',
             'title' => esc_html($name === '' ? __('Kein Arbeitsplatz', 'taxmod-label') : sprintf(/* translators: %s: workplace */ __('Arbeitsplatz: %s', 'taxmod-label'), $name)),
-            'href'  => WorkplacesPage::url(),
+            'href'  => current_user_can(\Taxmod\WordPress\Rights::CONFIGURE) ? WorkplacesPage::url() : false,
         ]);
         foreach ($menu->choices() as $choice) {
             $bar->add_node([
@@ -86,13 +85,16 @@ final class WorkplaceSwitch
                 'href'   => self::url($choice['id']),
             ]);
         }
-        $bar->add_node(['parent' => 'taxmod-workplace', 'id' => 'taxmod-workplace-manage', 'title' => esc_html__('Arbeitsplätze verwalten', 'taxmod-label'), 'href' => WorkplacesPage::url()]);
+        // D-1586: only who may set workplaces up is shown the way there.
+        if (current_user_can(\Taxmod\WordPress\Rights::CONFIGURE)) {
+            $bar->add_node(['parent' => 'taxmod-workplace', 'id' => 'taxmod-workplace-manage', 'title' => esc_html__('Arbeitsplätze verwalten', 'taxmod-label'), 'href' => WorkplacesPage::url()]);
+        }
     }
 
     /** admin-post: capability → nonce → the workplace exists (not in the trash) → user meta (CD-5, D-1518). */
     public static function handle(): never
     {
-        if (! current_user_can(Modeller::CAPABILITY)) {
+        if (! current_user_can(\Taxmod\WordPress\Rights::VIEW)) {
             wp_die(esc_html__('Keine Berechtigung.', 'taxmod-label'), '', ['response' => 403]);
         }
         check_admin_referer(self::ACTION);

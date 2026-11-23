@@ -3,7 +3,6 @@
 namespace TaxmodLabel\WordPress;
 
 use Taxmod\Core\Printing\LabelPrefix;
-use Taxmod\WordPress\Plugin as Modeller;
 use Taxmod\WordPress\Printing\PrintService;
 use TaxmodLabel\Core\FilledLabel;
 use TaxmodLabel\Core\LabelChanges;
@@ -44,14 +43,15 @@ final class LabelAbilities
             return;
         }
         $ids     = ['type' => 'array', 'items' => ['type' => 'integer', 'minimum' => 1]];
-        $allowed = static fn (): bool => current_user_can(Modeller::CAPABILITY);
+        // Printing is a cross function of every role (D-1585); changing a label is setting up.
+        $allowed = static fn (string $name): \Closure => static fn (): bool => current_user_can(in_array($name, [self::SAVE, self::REMOVE], true) ? \Taxmod\WordPress\Rights::CONFIGURE : \Taxmod\WordPress\Rights::VIEW);
         $ability = fn (string $name, string $label, string $description, array $properties, \Closure $act, bool $readonly, bool $destructive = false, array $required = []): bool => (bool) wp_register_ability($name, [
             'label'               => $label,
             'description'         => $description,
             'category'            => self::CATEGORY,
             'input_schema'        => ['type' => 'object', 'properties' => $properties, 'additionalProperties' => false] + ($required === [] ? [] : ['required' => $required]),
             'execute_callback'    => fn (mixed $input = null): array|\WP_Error => self::guarded(fn (): array => $act(is_array($input) ? $input : [])),
-            'permission_callback' => $allowed,
+            'permission_callback' => $allowed($name),
             'meta'                => ['public' => true, 'annotations' => ['readonly' => $readonly, 'destructive' => $destructive, 'idempotent' => $readonly]],
         ]);
 

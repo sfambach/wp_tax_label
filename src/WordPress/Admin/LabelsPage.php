@@ -4,7 +4,6 @@ namespace TaxmodLabel\WordPress\Admin;
 
 use Taxmod\WordPress\Draw\SelectMarkup;
 use Taxmod\WordPress\Admin\ListPage;
-use Taxmod\WordPress\Plugin as Modeller;
 use TaxmodLabel\WordPress\EditorRoutes;
 use TaxmodLabel\WordPress\LabelAbilities;
 use TaxmodLabel\WordPress\LabelService;
@@ -58,7 +57,7 @@ final class LabelsPage
     /** admin-post: capability → nonce → validate → act, every failure a message and the way back (D-1254). */
     public static function handle(): void
     {
-        if (! current_user_can(Modeller::CAPABILITY)) {
+        if (! current_user_can(\Taxmod\WordPress\Rights::CONFIGURE)) {
             ListPage::fail(__('Keine Berechtigung.', 'taxmod-label'), self::url());
         }
         ListPage::nonce(self::ACTION);

@@ -4,7 +4,6 @@ namespace TaxmodLabel\WordPress;
 
 use Taxmod\Core\Exception\DomainError;
 use Taxmod\WordPress\ModelDoor;
-use Taxmod\WordPress\Plugin as Modeller;
 use TaxmodLabel\Core\LabelError;
 use TaxmodLabel\Core\LabelPrinter;
 use TaxmodLabel\Core\Pdf\PostageLabel;
@@ -84,7 +83,7 @@ final class PostagePrint
 
     private static function allowed(): void
     {
-        if (! current_user_can(Modeller::CAPABILITY)) {
+        if (! current_user_can(\Taxmod\WordPress\Rights::VIEW)) {
             wp_send_json_error(['message' => __('Du darfst keine Etiketten drucken.', 'taxmod-label')], 403);
         }
         check_ajax_referer(self::ACTION, self::NONCE);

@@ -5,7 +5,6 @@ namespace TaxmodLabel\WordPress\Admin;
 use Taxmod\Core\Description\InputKind;
 use Taxmod\WordPress\Admin\ListPage;
 use Taxmod\WordPress\Admin\RecordPick;
-use Taxmod\WordPress\Plugin as Modeller;
 use TaxmodLabel\WordPress\LabelService;
 
 /**
@@ -34,7 +33,7 @@ final class WorkplacesPage
     /** admin-post «Neuer Arbeitsplatz»: capability → nonce → validate → sanitize → act (CD-5, D-1254). */
     public static function handle(): void
     {
-        if (! current_user_can(Modeller::CAPABILITY)) {
+        if (! current_user_can(\Taxmod\WordPress\Rights::CONFIGURE)) {
             ListPage::fail(__('Keine Berechtigung.', 'taxmod-label'), self::url());
         }
         ListPage::nonce(self::ACTION);
