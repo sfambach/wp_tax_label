@@ -27,7 +27,7 @@ use TaxmodLabel\WordPress\Admin\WorkplacesPage;
  */
 final class Plugin
 {
-    public const VERSION = '0.0.48';
+    public const VERSION = '0.0.49';
 
     /** D-1295: labelValues and queuePrint came with 0.2.61; DialogNumber since 0.2.133 (D-1431); button/iconButton/listBar since 0.2.172 (D-1500); several roots of a choice since 0.2.200 (D-1546); the one rules page since 0.2.206 (D-1558); the rights table since 0.2.237 (D-1585). */
     public const MIN_MODELLER = '0.2.237';
